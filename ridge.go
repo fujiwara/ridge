@@ -1,4 +1,4 @@
-package l2h
+package ridge
 
 import (
 	"encoding/json"

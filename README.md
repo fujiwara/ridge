@@ -1,4 +1,4 @@
-# l2h
+# ridge
 
 AWS Lambda HTTP Proxy integration event bridge to Go net/http.
 
@@ -18,7 +18,7 @@ import (
 	"os"
 
 	"github.com/apex/go-apex"
-	"github.com/fujiwara/l2h"
+	"github.com/fujiwara/ridge"
 )
 
 var mux = http.NewServeMux()
@@ -34,12 +34,12 @@ func main() {
 		log.Fatal(http.ListenAndServe(":8080", mux))
 	}
 	apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
-		r, err := l2h.NewRequest(event)
+		r, err := ridge.NewRequest(event)
 		if err != nil {
 			log.Println(err)
 			return nil, err
 		}
-		w := l2h.NewResponseWriter()
+		w := ridge.NewResponseWriter()
 		mux.ServeHTTP(w, r)
 		return w.Response(), nil
 	})
