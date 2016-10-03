@@ -73,7 +73,7 @@ type RequestContext struct {
 	ApiID        string            `json:"apiId"`
 	HTTPMethod   string            `json:"httpMethod"`
 	Identity     map[string]string `json:"identity"`
-	RequestID    string            `json"requestId"`
+	RequestID    string            `json:"requestId"`
 	ResourceID   string            `json:"resourceId"`
 	ResourcePath string            `json:"resourcePath"`
 	Stage        string            `json:"stage"`
