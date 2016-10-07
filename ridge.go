@@ -114,7 +114,7 @@ func (w *ResponseWriter) Write(b []byte) (int, error) {
 
 func (w *ResponseWriter) Response() Response {
 	h := make(map[string]string, len(w.header))
-	for key, _ := range w.header {
+	for key := range w.header {
 		h[key] = w.header.Get(key)
 	}
 	return Response{
