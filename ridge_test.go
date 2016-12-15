@@ -66,6 +66,9 @@ func TestPostRequest(t *testing.T) {
 	if r.URL.String() != u.String() {
 		t.Errorf("URL: %s is not expected", r.URL)
 	}
+	if v := r.FormValue("foo"); v != "bar baz" {
+		t.Errorf("FormValue(foo): %s is not expected", v)
+	}
 	if v := r.PostFormValue("foo"); v != "bar baz" {
 		t.Errorf("PostFormValue(foo): %s is not expected", v)
 	}
