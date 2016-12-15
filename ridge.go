@@ -60,7 +60,6 @@ func (r Request) HTTPRequest() *http.Request {
 		ContentLength: int64(len(r.Body)),
 		Body:          &RequestBody{strings.NewReader(r.Body)},
 		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
-		Form:          formV,
 		Host:          host,
 		RequestURI:    uri,
 		URL:           u,
