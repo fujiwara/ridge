@@ -54,7 +54,6 @@ func TestPostRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to decode postEvent: %s", err)
 	}
-	r.ParseForm()
 
 	if r.Host != "abcdefg.execute-api.ap-northeast-1.example.com" {
 		t.Errorf("Host: %s is not expected", r.Host)
@@ -66,7 +65,7 @@ func TestPostRequest(t *testing.T) {
 	if r.URL.String() != u.String() {
 		t.Errorf("URL: %s is not expected", r.URL)
 	}
-	if v := r.PostFormValue("foo"); v != "bar baz" {
+	if v := r.FormValue("foo"); v != "bar baz" {
 		t.Errorf("PostFormValue(foo): %s is not expected", v)
 	}
 	if v := r.Header.Get("CloudFront-Viewer-Country"); v != "JP" {
