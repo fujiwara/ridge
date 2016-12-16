@@ -8,5 +8,4 @@ go:
 
 install:
   - go get -u ./...
-  - go test
 
