@@ -2,11 +2,16 @@ package ridge
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+
+	"github.com/apex/go-apex"
 )
 
+// Request represents an HTTP request received by an API Gateway proxy integrations.
 type Request struct {
 	Body                  string            `json:"body"`
 	Headers               map[string]string `json:"headers"`
@@ -19,6 +24,7 @@ type Request struct {
 	RequestContext        RequestContext    `json:"requestContext"`
 }
 
+// NewRequest creates *net/http.Request from a Request.
 func NewRequest(event json.RawMessage) (*http.Request, error) {
 	var r Request
 	if err := json.Unmarshal(event, &r); err != nil {
@@ -27,10 +33,12 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 	return r.HTTPRequest(), nil
 }
 
+// RequestBody represents HTTP Request body impliments io.ReadCloser.
 type RequestBody struct {
 	*strings.Reader
 }
 
+// Close closes requestBody.
 func (b *RequestBody) Close() error {
 	return nil
 }
@@ -67,6 +75,7 @@ func (r Request) HTTPRequest() *http.Request {
 	return &req
 }
 
+// RequestContext represents request contest object.
 type RequestContext struct {
 	AccountID    string            `json:"accountId"`
 	ApiID        string            `json:"apiId"`
@@ -78,12 +87,14 @@ type RequestContext struct {
 	Stage        string            `json:"stage"`
 }
 
+// Response represents a response for API Gateway proxy integration.
 type Response struct {
 	StatusCode int               `json:"statusCode"`
 	Headers    map[string]string `json:"headers"`
 	Body       string            `json:"body"`
 }
 
+// NewResponseWriter creates ResponseWriter
 func NewResponseWriter() *ResponseWriter {
 	return &ResponseWriter{
 		statusCode: http.StatusOK,
@@ -92,6 +103,7 @@ func NewResponseWriter() *ResponseWriter {
 	}
 }
 
+// ResponeWriter represents a response writer implements http.ResponseWriter.
 type ResponseWriter struct {
 	header     http.Header
 	body       []byte
@@ -120,5 +132,28 @@ func (w *ResponseWriter) Response() Response {
 		StatusCode: w.statusCode,
 		Headers:    h,
 		Body:       string(w.body),
+	}
+}
+
+// Run runs http handler on Apex or net/http's server.
+// If it is running on Apex (APEX_FUNCTION_NAME environment variable defined), call apex.HandleFunc().
+// Otherwise start net/http server using prefix and address.
+func Run(address, prefix string, mux http.Handler) {
+	if os.Getenv("APEX_FUNCTION_NAME") != "" {
+		apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
+			r, err := NewRequest(event)
+			if err != nil {
+				log.Println(err)
+				return nil, err
+			}
+			w := NewResponseWriter()
+			mux.ServeHTTP(w, r)
+			return w.Response(), nil
+		})
+	} else {
+		m := http.NewServeMux()
+		m.Handle(prefix+"/", http.StripPrefix(prefix, mux))
+		log.Println("starting up with local httpd", address)
+		log.Fatal(http.ListenAndServe(address, m))
 	}
 }

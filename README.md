@@ -11,13 +11,9 @@ AWS Lambda HTTP Proxy integration event bridge to Go net/http.
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
 
-	"github.com/apex/go-apex"
 	"github.com/fujiwara/ridge"
 )
 
@@ -29,20 +25,7 @@ func init() {
 }
 
 func main() {
-	if os.Getenv("APEX") == "" {
-		log.Println("starting up with local httpd")
-		log.Fatal(http.ListenAndServe(":8080", mux))
-	}
-	apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
-		r, err := ridge.NewRequest(event)
-		if err != nil {
-			log.Println(err)
-			return nil, err
-		}
-		w := ridge.NewResponseWriter()
-		mux.ServeHTTP(w, r)
-		return w.Response(), nil
-	})
+	ridge.Run(":8080", "/api", mux)
 }
 
 func handleHello(w http.ResponseWriter, r *http.Request) {
