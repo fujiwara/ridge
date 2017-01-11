@@ -1,7 +1,10 @@
 package ridge
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -22,6 +25,7 @@ type Request struct {
 	Resource              string            `json:"resource"`
 	StageVariables        map[string]string `json:"stageVariables"`
 	RequestContext        RequestContext    `json:"requestContext"`
+	IsBase64Encoded       bool              `json:"isBase64Encoded"`
 }
 
 // NewRequest creates *net/http.Request from a Request.
@@ -30,12 +34,12 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 	if err := json.Unmarshal(event, &r); err != nil {
 		return nil, err
 	}
-	return r.HTTPRequest(), nil
+	return r.HTTPRequest()
 }
 
 // RequestBody represents HTTP Request body impliments io.ReadCloser.
 type RequestBody struct {
-	*strings.Reader
+	io.Reader
 }
 
 // Close closes requestBody.
@@ -43,7 +47,7 @@ func (b *RequestBody) Close() error {
 	return nil
 }
 
-func (r Request) HTTPRequest() *http.Request {
+func (r Request) HTTPRequest() (*http.Request, error) {
 	header := make(http.Header)
 	for key, value := range r.Headers {
 		header.Add(key, value)
@@ -59,20 +63,34 @@ func (r Request) HTTPRequest() *http.Request {
 		uri = uri + "?" + formV.Encode()
 	}
 	u, _ := url.Parse(uri)
+	var contentLength int64
+	var body io.Reader
+	if r.IsBase64Encoded {
+		raw := make([]byte, len(r.Body))
+		n, err := base64.StdEncoding.Decode(raw, []byte(r.Body))
+		if err != nil {
+			return nil, err
+		}
+		contentLength = int64(n)
+		body = bytes.NewReader(raw[0:n])
+	} else {
+		contentLength = int64(len(r.Body))
+		body = strings.NewReader(r.Body)
+	}
 	req := http.Request{
 		Method:        r.HTTPMethod,
 		Proto:         "HTTP/1.1",
 		ProtoMajor:    1,
 		ProtoMinor:    1,
 		Header:        header,
-		ContentLength: int64(len(r.Body)),
-		Body:          &RequestBody{strings.NewReader(r.Body)},
+		ContentLength: contentLength,
+		Body:          &RequestBody{body},
 		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
 		Host:          host,
 		RequestURI:    uri,
 		URL:           u,
 	}
-	return &req
+	return &req, nil
 }
 
 // RequestContext represents request contest object.
