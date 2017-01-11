@@ -34,20 +34,20 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 	if err := json.Unmarshal(event, &r); err != nil {
 		return nil, err
 	}
-	return r.HTTPRequest()
+	return r.httpRequest()
 }
 
 // RequestBody represents HTTP Request body impliments io.ReadCloser.
-type RequestBody struct {
+type requestBody struct {
 	io.Reader
 }
 
 // Close closes requestBody.
-func (b *RequestBody) Close() error {
+func (b *requestBody) Close() error {
 	return nil
 }
 
-func (r Request) HTTPRequest() (*http.Request, error) {
+func (r Request) httpRequest() (*http.Request, error) {
 	header := make(http.Header)
 	for key, value := range r.Headers {
 		header.Add(key, value)
@@ -84,7 +84,7 @@ func (r Request) HTTPRequest() (*http.Request, error) {
 		ProtoMinor:    1,
 		Header:        header,
 		ContentLength: contentLength,
-		Body:          &RequestBody{body},
+		Body:          &requestBody{body},
 		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
 		Host:          host,
 		RequestURI:    uri,
