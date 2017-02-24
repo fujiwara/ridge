@@ -150,6 +150,12 @@ func (w *ResponseWriter) Response() Response {
 func Run(address, prefix string, mux http.Handler) {
 	if os.Getenv("APEX_FUNCTION_NAME") != "" {
 		apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
+			// redirect stdout to stderr in Apex functions
+			stdout := os.Stdout
+			os.Stdout = os.Stderr
+			defer func() {
+				os.Stdout = stdout
+			}()
 			r, err := NewRequest(event)
 			if err != nil {
 				log.Println(err)
