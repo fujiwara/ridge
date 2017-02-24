@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -35,16 +36,6 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 		return nil, err
 	}
 	return r.httpRequest()
-}
-
-// RequestBody represents HTTP Request body impliments io.ReadCloser.
-type requestBody struct {
-	io.Reader
-}
-
-// Close closes requestBody.
-func (b *requestBody) Close() error {
-	return nil
 }
 
 func (r Request) httpRequest() (*http.Request, error) {
@@ -84,7 +75,7 @@ func (r Request) httpRequest() (*http.Request, error) {
 		ProtoMinor:    1,
 		Header:        header,
 		ContentLength: contentLength,
-		Body:          &requestBody{body},
+		Body:          ioutil.NopCloser(body),
 		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
 		Host:          host,
 		RequestURI:    uri,
