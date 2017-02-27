@@ -19,14 +19,10 @@ import (
 	"github.com/fujiwara/ridge"
 )
 
-var mux = http.NewServeMux()
-
-func init() {
+func main() {
+	var mux = http.NewServeMux()
 	mux.HandleFunc("/", handleRoot)
 	mux.HandleFunc("/hello", handleHello)
-}
-
-func main() {
 	ridge.Run(":8080", "/api", mux)
 }
 
