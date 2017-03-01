@@ -105,9 +105,8 @@ type Response struct {
 
 // NewResponseWriter creates ResponseWriter
 func NewResponseWriter() *ResponseWriter {
-	var b bytes.Buffer
 	w := &ResponseWriter{
-		Buffer:     &b,
+		Buffer:     bytes.Buffer{},
 		statusCode: http.StatusOK,
 		header:     make(http.Header),
 	}
@@ -116,7 +115,7 @@ func NewResponseWriter() *ResponseWriter {
 
 // ResponeWriter represents a response writer implements http.ResponseWriter.
 type ResponseWriter struct {
-	*bytes.Buffer
+	bytes.Buffer
 	header     http.Header
 	statusCode int
 }
