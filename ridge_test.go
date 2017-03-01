@@ -2,6 +2,7 @@ package ridge_test
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -117,5 +118,37 @@ func TestBase64EncodedRequest(t *testing.T) {
 	}
 	if r.ContentLength != 13 {
 		t.Errorf("Content-Length: %d is not expected", r.ContentLength)
+	}
+}
+
+func TestResponseWriter(t *testing.T) {
+	w := ridge.NewResponseWriter()
+
+	for _, s := range []string{"abcd", "efgh"} {
+		n, err := io.WriteString(w, s)
+		if n != 4 {
+			t.Error("invalid wrote bytes length", n)
+		}
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	w.WriteHeader(500)
+	w.Header().Add("Foo", "foo")
+	w.Header().Add("Bar", "bar1")
+	w.Header().Add("Bar", "bar2")
+	res := w.Response()
+	if res.StatusCode != 500 {
+		t.Error("unexpected status code", res.StatusCode)
+	}
+	if res.Headers["Foo"] != "foo" {
+		t.Error("unexpected Header Foo", res.Headers["Foo"])
+	}
+	if res.Headers["Bar"] != "bar1" {
+		t.Error("unexpected Header Bar", res.Headers["Bar"])
+	}
+	if res.Body != "abcdefgh" {
+		t.Error("unexpected Header Bar", res.Headers["Bar"])
 	}
 }

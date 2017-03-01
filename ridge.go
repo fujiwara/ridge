@@ -45,17 +45,17 @@ func (r Request) httpRequest() (*http.Request, error) {
 	}
 	host := header.Get("Host")
 	header.Del("Host")
-	formV := make(url.Values)
+	v := make(url.Values)
 	for key, value := range r.QueryStringParameters {
-		formV.Add(key, value)
+		v.Add(key, value)
 	}
 	uri := r.Path
 	if len(r.QueryStringParameters) > 0 {
-		uri = uri + "?" + formV.Encode()
+		uri = uri + "?" + v.Encode()
 	}
 	u, _ := url.Parse(uri)
 	var contentLength int64
-	var body io.Reader
+	var b io.Reader
 	if r.IsBase64Encoded {
 		raw := make([]byte, len(r.Body))
 		n, err := base64.StdEncoding.Decode(raw, []byte(r.Body))
@@ -63,10 +63,10 @@ func (r Request) httpRequest() (*http.Request, error) {
 			return nil, err
 		}
 		contentLength = int64(n)
-		body = bytes.NewReader(raw[0:n])
+		b = bytes.NewReader(raw[0:n])
 	} else {
 		contentLength = int64(len(r.Body))
-		body = strings.NewReader(r.Body)
+		b = strings.NewReader(r.Body)
 	}
 	req := http.Request{
 		Method:        r.HTTPMethod,
@@ -75,7 +75,7 @@ func (r Request) httpRequest() (*http.Request, error) {
 		ProtoMinor:    1,
 		Header:        header,
 		ContentLength: contentLength,
-		Body:          ioutil.NopCloser(body),
+		Body:          ioutil.NopCloser(b),
 		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
 		Host:          host,
 		RequestURI:    uri,
@@ -105,17 +105,19 @@ type Response struct {
 
 // NewResponseWriter creates ResponseWriter
 func NewResponseWriter() *ResponseWriter {
-	return &ResponseWriter{
+	var b bytes.Buffer
+	w := &ResponseWriter{
+		Buffer:     &b,
 		statusCode: http.StatusOK,
 		header:     make(http.Header),
-		body:       []byte{},
 	}
+	return w
 }
 
 // ResponeWriter represents a response writer implements http.ResponseWriter.
 type ResponseWriter struct {
+	*bytes.Buffer
 	header     http.Header
-	body       []byte
 	statusCode int
 }
 
@@ -127,11 +129,6 @@ func (w *ResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 }
 
-func (w *ResponseWriter) Write(b []byte) (int, error) {
-	w.body = append(w.body, b...)
-	return len(b), nil
-}
-
 func (w *ResponseWriter) Response() Response {
 	h := make(map[string]string, len(w.header))
 	for key := range w.header {
@@ -140,7 +137,7 @@ func (w *ResponseWriter) Response() Response {
 	return Response{
 		StatusCode: w.statusCode,
 		Headers:    h,
-		Body:       string(w.body),
+		Body:       w.String(),
 	}
 }
 
