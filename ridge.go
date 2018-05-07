@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/apex/go-apex"
+	"github.com/aws/aws-lambda-go/lambda"
 )
 
 // Request represents an HTTP request received by an API Gateway proxy integrations.
@@ -140,18 +141,12 @@ func (w *ResponseWriter) Response() Response {
 	}
 }
 
-// Run runs http handler on Apex or net/http's server.
+// Run runs http handler on Apex(nodejs runtime), go runtime, or net/http's server.
 // If it is running on Apex (APEX_FUNCTION_NAME environment variable defined), call apex.HandleFunc().
 // Otherwise start net/http server using prefix and address.
 func Run(address, prefix string, mux http.Handler) {
-	if os.Getenv("APEX_FUNCTION_NAME") != "" {
-		apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
-			// redirect stdout to stderr in Apex functions
-			stdout := os.Stdout
-			os.Stdout = os.Stderr
-			defer func() {
-				os.Stdout = stdout
-			}()
+	if env := os.Getenv("AWS_EXECUTION_ENV"); env != "" {
+		handler := func(event json.RawMessage) (interface{}, error) {
 			r, err := NewRequest(event)
 			if err != nil {
 				log.Println(err)
@@ -160,10 +155,32 @@ func Run(address, prefix string, mux http.Handler) {
 			w := NewResponseWriter()
 			mux.ServeHTTP(w, r)
 			return w.Response(), nil
-		})
+		}
+		if strings.HasPrefix(env, "AWS_Lambda_nodejs") && os.Getenv("APEX_FUNCTION_NAME") != "" {
+			// Apex (node runtime)
+			apex.HandleFunc(
+				func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
+					// redirect stdout to stderr in Apex functions
+					stdout := os.Stdout
+					os.Stdout = os.Stderr
+					defer func() {
+						os.Stdout = stdout
+					}()
+					return handler(event)
+				},
+			)
+		} else if strings.HasPrefix(env, "AWS_Lambda_go") {
+			// native Go runtime
+			lambda.Start(handler)
+		} else {
+			log.Printf("Environment %s is not supported", env)
+		}
 	} else {
 		m := http.NewServeMux()
-		m.Handle(prefix+"/", http.StripPrefix(prefix, mux))
+		if !strings.HasSuffix(prefix, "/") {
+			prefix = prefix + "/"
+		}
+		m.Handle(prefix, http.StripPrefix(prefix, mux))
 		log.Println("starting up with local httpd", address)
 		log.Fatal(http.ListenAndServe(address, m))
 	}
