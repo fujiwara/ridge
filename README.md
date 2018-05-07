@@ -41,7 +41,7 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 1. Run `apex init`.
 2. Place main.go to functions/example/.
 3. Edit project.json
-  - `"language": "go"`
+  - `"runtime": "golang"`
 4. Run `apex deploy`
 5. Create API Gateway Proxy Integration. http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-set-up-simple-proxy.html
 
@@ -49,11 +49,13 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 `ridge.Run(address, prefix, handler)` works as below.
 
-- If a process is running on Apex (`APEX_FUNCTION_NAME` environment variable defined), call apex.HandleFunc().
+- If a process is running on Lambda (`AWS_EXECUTION_ENV` environment variable defined),
+  - Call apex.HandleFunc() when runtime is nodejs*
+  - Call lambda.Start() when runtime is go1.x
 - Otherwise start a net/http server using prefix and address.
 
 ## LICENSE
 
 The MIT License (MIT)
 
-Copyright (c) 2016 FUJIWARA Shunichiro
+Copyright (c) 2016- FUJIWARA Shunichiro
