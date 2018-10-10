@@ -18,8 +18,27 @@
     "X-Forwarded-Port": "443",
     "X-Forwarded-Proto": "https"
   },
+  "multiValueHeaders": {
+    "Accept": ["*/*"],
+    "CloudFront-Forwarded-Proto": ["https"],
+    "CloudFront-Is-Desktop-Viewer": ["true"],
+    "CloudFront-Is-Mobile-Viewer": ["false"],
+    "CloudFront-Is-SmartTV-Viewer": ["false"],
+    "CloudFront-Is-Tablet-Viewer": ["false"],
+    "CloudFront-Viewer-Country": ["JP"],
+    "Host": ["abcdefg.execute-api.ap-northeast-1.example.com"],
+    "User-Agent": ["curl/7.43.0"],
+    "Via": ["1.1 a3fed41c60e2fab219a274640e58ebe5.cloudfront.net (CloudFront)"],
+    "X-Amz-Cf-Id": ["pxfb9Y0Mr-g0QNTExIE5_IAwk4yUy1ObJ7k7xsuJv_IMNsnYjQ0kvA=="],
+    "X-Forwarded-For": ["203.0.113.1, 54.239.196.62"],
+    "X-Forwarded-Port": ["443"],
+    "X-Forwarded-Proto": ["https"]
+  },
   "queryStringParameters": {
     "foo": "bar baz"
+  },
+  "multiValueQueryStringParameters": {
+    "foo": ["bar baz", "boo uoo"]
   },
   "pathParameters": {
     "proxy": "path/to/example"

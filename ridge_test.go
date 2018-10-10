@@ -27,12 +27,18 @@ func TestGetRequest(t *testing.T) {
 	if r.Method != "GET" {
 		t.Errorf("Method: %s is not expected", r.Method)
 	}
-	u, _ := url.Parse("/path/to/example?foo=bar+baz")
+	u, _ := url.Parse("/path/to/example?foo=bar+baz&foo=boo+uoo")
 	if r.URL.String() != u.String() {
 		t.Errorf("URL: %s is not expected", r.URL)
 	}
 	if v := r.FormValue("foo"); v != "bar baz" {
 		t.Errorf("FormValue(foo): %s is not expected", v)
+	}
+	if v := r.Form["foo"][0]; v != "bar baz" {
+		t.Errorf("FormValue(foo(0)): %s is not expected", v)
+	}
+	if v := r.Form["foo"][1]; v != "boo uoo" {
+		t.Errorf("FormValue(foo(1)): %s is not expected", v)
 	}
 	if v := r.Header.Get("CloudFront-Viewer-Country"); v != "JP" {
 		t.Errorf("Header[CloudFront-Viewer-Country]: %s is not expected", v)

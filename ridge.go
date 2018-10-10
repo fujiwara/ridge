@@ -18,16 +18,18 @@ import (
 
 // Request represents an HTTP request received by an API Gateway proxy integrations.
 type Request struct {
-	Body                  string            `json:"body"`
-	Headers               map[string]string `json:"headers"`
-	HTTPMethod            string            `json:"httpMethod"`
-	Path                  string            `json:"path"`
-	PathParameters        map[string]string `json:"pathParameters"`
-	QueryStringParameters map[string]string `json:"queryStringParameters"`
-	Resource              string            `json:"resource"`
-	StageVariables        map[string]string `json:"stageVariables"`
-	RequestContext        RequestContext    `json:"requestContext"`
-	IsBase64Encoded       bool              `json:"isBase64Encoded"`
+	Body                            string              `json:"body"`
+	Headers                         map[string]string   `json:"headers"`
+	MultiValueHeaders               http.Header         `json:"multiValueHeaders"`
+	HTTPMethod                      string              `json:"httpMethod"`
+	Path                            string              `json:"path"`
+	PathParameters                  map[string]string   `json:"pathParameters"`
+	QueryStringParameters           map[string]string   `json:"queryStringParameters"`
+	MultiValueQueryStringParameters map[string][]string `json:"multiValueQueryStringParameters"`
+	Resource                        string              `json:"resource"`
+	StageVariables                  map[string]string   `json:"stageVariables"`
+	RequestContext                  RequestContext      `json:"requestContext"`
+	IsBase64Encoded                 bool                `json:"isBase64Encoded"`
 }
 
 // NewRequest creates *net/http.Request from a Request.
@@ -41,14 +43,30 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 
 func (r Request) httpRequest() (*http.Request, error) {
 	header := make(http.Header)
-	for key, value := range r.Headers {
-		header.Add(key, value)
+	if len(r.MultiValueHeaders) > 0 {
+		for key, values := range r.MultiValueHeaders {
+			for _, value := range values {
+				header.Add(key, value)
+			}
+		}
+	} else {
+		for key, value := range r.Headers {
+			header.Add(key, value)
+		}
 	}
 	host := header.Get("Host")
 	header.Del("Host")
 	v := make(url.Values)
-	for key, value := range r.QueryStringParameters {
-		v.Add(key, value)
+	if len(r.MultiValueQueryStringParameters) > 0 {
+		for key, values := range r.MultiValueQueryStringParameters {
+			for _, value := range values {
+				v.Add(key, value)
+			}
+		}
+	} else {
+		for key, value := range r.QueryStringParameters {
+			v.Add(key, value)
+		}
 	}
 	uri := r.Path
 	if len(r.QueryStringParameters) > 0 {
@@ -99,9 +117,10 @@ type RequestContext struct {
 
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
-	StatusCode int               `json:"statusCode"`
-	Headers    map[string]string `json:"headers"`
-	Body       string            `json:"body"`
+	StatusCode        int               `json:"statusCode"`
+	Headers           map[string]string `json:"headers"`
+	MultiValueHeaders http.Header       `json:"multiValueHeaders"`
+	Body              string            `json:"body"`
 }
 
 // NewResponseWriter creates ResponseWriter
@@ -135,9 +154,10 @@ func (w *ResponseWriter) Response() Response {
 		h[key] = w.header.Get(key)
 	}
 	return Response{
-		StatusCode: w.statusCode,
-		Headers:    h,
-		Body:       w.String(),
+		StatusCode:        w.statusCode,
+		Headers:           h,
+		MultiValueHeaders: w.header,
+		Body:              w.String(),
 	}
 }
 
