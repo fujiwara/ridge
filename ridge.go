@@ -197,10 +197,14 @@ func Run(address, prefix string, mux http.Handler) {
 		}
 	} else {
 		m := http.NewServeMux()
-		if !strings.HasSuffix(prefix, "/") {
-			prefix = prefix + "/"
+		switch {
+		case prefix == "/", prefix == "":
+			m.Handle("/", mux)
+		case !strings.HasSuffix(prefix, "/"):
+			m.Handle(prefix+"/", http.StripPrefix(prefix, mux))
+		default:
+			m.Handle(prefix, http.StripPrefix(strings.TrimSuffix(prefix, "/"), mux))
 		}
-		m.Handle(prefix, http.StripPrefix(prefix, mux))
 		log.Println("starting up with local httpd", address)
 		log.Fatal(http.ListenAndServe(address, m))
 	}
