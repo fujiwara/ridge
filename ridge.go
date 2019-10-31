@@ -162,9 +162,11 @@ func (w *ResponseWriter) Response() Response {
 		v := w.header.Get(key)
 		if isBinary(key, v) {
 			isBase64Encoded = true
-			body = base64.StdEncoding.EncodeToString(w.Bytes())
 		}
 		h[key] = v
+	}
+	if isBase64Encoded {
+		body = base64.StdEncoding.EncodeToString(w.Bytes())
 	}
 	return Response{
 		StatusCode:        w.statusCode,
