@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +16,9 @@ import (
 	"github.com/apex/go-apex"
 	"github.com/aws/aws-lambda-go/lambda"
 )
+
+// TextMimeTypes is a list of identified as text.
+var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/xml"}
 
 // Request represents an HTTP request received by an API Gateway proxy integrations.
 type Request struct {
@@ -121,6 +125,7 @@ type Response struct {
 	Headers           map[string]string `json:"headers"`
 	MultiValueHeaders http.Header       `json:"multiValueHeaders"`
 	Body              string            `json:"body"`
+	IsBase64Encoded   bool              `json:"isBase64Encoded"`
 }
 
 // NewResponseWriter creates ResponseWriter
@@ -149,16 +154,55 @@ func (w *ResponseWriter) WriteHeader(code int) {
 }
 
 func (w *ResponseWriter) Response() Response {
+	body := w.String()
+	isBase64Encoded := false
+
 	h := make(map[string]string, len(w.header))
 	for key := range w.header {
-		h[key] = w.header.Get(key)
+		v := w.header.Get(key)
+		if isBinary(key, v) {
+			isBase64Encoded = true
+			body = base64.StdEncoding.EncodeToString(w.Bytes())
+		}
+		h[key] = v
 	}
 	return Response{
 		StatusCode:        w.statusCode,
 		Headers:           h,
 		MultiValueHeaders: w.header,
-		Body:              w.String(),
+		Body:              body,
+		IsBase64Encoded:   isBase64Encoded,
 	}
+}
+
+func isBinary(k, v string) bool {
+	if k == "Content-Type" && !isTextMime(v) {
+		return true
+	}
+	if k == "Content-Encoding" && v == "gzip" {
+		return true
+	}
+	return false
+}
+
+func isTextMime(kind string) bool {
+	mt, _, err := mime.ParseMediaType(kind)
+	if err != nil {
+		return false
+	}
+
+	if strings.HasPrefix(mt, "text/") {
+		return true
+	}
+
+	isText := false
+	for _, tmt := range TextMimeTypes {
+		if mt == tmt {
+			isText = true
+			break
+		}
+	}
+	return isText
 }
 
 // Run runs http handler on Apex(nodejs runtime), go runtime, or net/http's server.

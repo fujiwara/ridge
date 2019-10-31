@@ -1,9 +1,11 @@
 package ridge_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"testing"
@@ -156,5 +158,34 @@ func TestResponseWriter(t *testing.T) {
 	}
 	if res.Body != "abcdefgh" {
 		t.Error("unexpected Header Bar", res.Headers["Bar"])
+	}
+	if res.IsBase64Encoded != false {
+		t.Error("set isBase64Encoded = true, but this is text response")
+	}
+}
+
+func TestResponseWriter__Image(t *testing.T) {
+	bs, err := ioutil.ReadFile("test/bluebox.png")
+	if err != nil {
+		t.Error(err)
+	}
+	expectedBody := base64.StdEncoding.EncodeToString(bs)
+
+	w := ridge.NewResponseWriter()
+	req, err := http.NewRequest(http.MethodGet, "http://example.com/bluebox.png", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	http.ServeFile(w, req, "test/bluebox.png")
+
+	res := w.Response()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("response status is not StatusOK: %d", res.StatusCode)
+	}
+	if res.IsBase64Encoded != true {
+		t.Error("isBase64Encoded is not true")
+	}
+	if res.Body != expectedBody {
+		t.Errorf("base64 encoded body is not match: got=%s", res.Body)
 	}
 }
