@@ -12,9 +12,10 @@ import (
 	"strings"
 )
 
+// PayloadVersion when this variable set, Ridge disables auto detection payload version.
 var PayloadVersion string
 
-// Request represents an HTTP request received by an API Gateway proxy integrations. (v1.0)
+// RequestV1 represents an HTTP request received by an API Gateway proxy integrations. (v1.0)
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html
 type RequestV1 struct {
 	Body                            string              `json:"body"`
@@ -31,6 +32,7 @@ type RequestV1 struct {
 	IsBase64Encoded                 bool                `json:"isBase64Encoded"`
 }
 
+// Request is alias to RequestV1
 type Request = RequestV1
 
 // NewRequest creates *net/http.Request from a Request.
@@ -122,7 +124,7 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 	return &req, nil
 }
 
-// RequestContext represents request contest object.
+// RequestContextV1 represents request contest object (v1.0).
 type RequestContextV1 struct {
 	AccountID    string            `json:"accountId"`
 	APIID        string            `json:"apiId"`
@@ -134,6 +136,7 @@ type RequestContextV1 struct {
 	Stage        string            `json:"stage"`
 }
 
+// RequstContext is alias to RequestContextV1
 type RequetContext = RequestContextV1
 
 // RequestV2 represents an HTTP request received by an API Gateway proxy integrations. (v2.0)
@@ -152,6 +155,7 @@ type RequestV2 struct {
 	StageVariables        map[string]string `json:"stageVariables"`
 }
 
+// RequestContextV2 represents request context for v2.0
 type RequestContextV2 struct {
 	AccountID    string `json:"accountId"`
 	APIID        string `json:"apiId"`
