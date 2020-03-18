@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,11 +12,11 @@ import (
 	"strings"
 )
 
-var payloadVersion string
+var PayloadVersion string
 
 // Request represents an HTTP request received by an API Gateway proxy integrations. (v1.0)
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html
-type Request struct {
+type RequestV1 struct {
 	Body                            string              `json:"body"`
 	Headers                         map[string]string   `json:"headers"`
 	MultiValueHeaders               http.Header         `json:"multiValueHeaders"`
@@ -26,23 +27,23 @@ type Request struct {
 	MultiValueQueryStringParameters map[string][]string `json:"multiValueQueryStringParameters"`
 	Resource                        string              `json:"resource"`
 	StageVariables                  map[string]string   `json:"stageVariables"`
-	RequestContext                  RequestContext      `json:"requestContext"`
+	RequestContext                  RequestContextV1    `json:"requestContext"`
 	IsBase64Encoded                 bool                `json:"isBase64Encoded"`
 }
 
-type RequestV1 = Request
+type Request = RequestV1
 
 // NewRequest creates *net/http.Request from a Request.
 func NewRequest(event json.RawMessage) (*http.Request, error) {
 	var r struct {
 		Version string `json:"version"`
 	}
-	if payloadVersion == "" {
+	if PayloadVersion == "" {
 		if err := json.Unmarshal(event, &r); err != nil {
 			return nil, err
 		}
 	} else {
-		r.Version = payloadVersion
+		r.Version = PayloadVersion
 	}
 
 	switch r.Version {
@@ -50,10 +51,12 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 		var rv2 RequestV2
 		json.Unmarshal(event, &rv2)
 		return rv2.httpRequest()
-	default:
+	case "1.0", "":
 		var rv1 RequestV1
 		json.Unmarshal(event, &rv1)
 		return rv1.httpRequest()
+	default:
+		return nil, fmt.Errorf("Payload Version %s is not supported", r.Version)
 	}
 }
 
@@ -120,25 +123,18 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 }
 
 // RequestContext represents request contest object.
-type RequestContext struct {
-	AccountID    string              `json:"accountId"`
-	ApiID        string              `json:"apiId"`
-	Authorizer   RequestAuthorizerV1 `json:"authorizer"`
-	HTTPMethod   string              `json:"httpMethod"`
-	Identity     map[string]string   `json:"identity"`
-	RequestID    string              `json:"requestId"`
-	ResourceID   string              `json:"resourceId"`
-	ResourcePath string              `json:"resourcePath"`
-	Stage        string              `json:"stage"`
+type RequestContextV1 struct {
+	AccountID    string            `json:"accountId"`
+	APIID        string            `json:"apiId"`
+	HTTPMethod   string            `json:"httpMethod"`
+	Identity     map[string]string `json:"identity"`
+	RequestID    string            `json:"requestId"`
+	ResourceID   string            `json:"resourceId"`
+	ResourcePath string            `json:"resourcePath"`
+	Stage        string            `json:"stage"`
 }
 
-type RequetContextV1 = RequestContext
-
-type RequestAuthorizerV1 struct {
-	Scope       string `json:"scope"`
-	Claim       string `json:"claim"`
-	PrincipalID string `json:"principalId"`
-}
+type RequetContext = RequestContextV1
 
 // RequestV2 represents an HTTP request received by an API Gateway proxy integrations. (v2.0)
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html
@@ -157,11 +153,10 @@ type RequestV2 struct {
 }
 
 type RequestContextV2 struct {
-	AccountID    string              `json:"accountId"`
-	APIID        string              `json:"apiId"`
-	Authorizer   RequestAuthorizerV2 `json:"authorizer"`
-	DomainName   string              `json:"domainName"`
-	DomainPrefix string              `json:"domainPrefix"`
+	AccountID    string `json:"accountId"`
+	APIID        string `json:"apiId"`
+	DomainName   string `json:"domainName"`
+	DomainPrefix string `json:"domainPrefix"`
 	HTTP         struct {
 		Method    string `json:"method"`
 		Path      string `json:"path"`
@@ -177,13 +172,42 @@ type RequestContextV2 struct {
 	TimeEpoch int64  `json:"timeEpoch"`
 }
 
-type RequestAuthorizerV2 struct {
-	Jwt struct {
-		Claims map[string]string `json:"claims"`
-		Scopes []string          `json:"scopes"`
-	} `json:"jwt"`
-}
-
 func (r RequestV2) httpRequest() (*http.Request, error) {
-	return nil, nil
+	header := make(http.Header)
+	for key, value := range r.Headers {
+		header.Add(key, value)
+	}
+	host := header.Get("Host")
+	header.Del("Host")
+	uri := r.RawPath
+	if r.RawQueryString != "" {
+		uri = uri + "?" + r.RawQueryString
+	}
+	u, _ := url.Parse(uri)
+	var contentLength int64
+	var b io.Reader
+	if r.IsBase64Encoded {
+		raw := make([]byte, len(r.Body))
+		n, err := base64.StdEncoding.Decode(raw, []byte(r.Body))
+		if err != nil {
+			return nil, err
+		}
+		contentLength = int64(n)
+		b = bytes.NewReader(raw[0:n])
+	} else {
+		contentLength = int64(len(r.Body))
+		b = strings.NewReader(r.Body)
+	}
+	req := http.Request{
+		Method:        r.RequestContext.HTTP.Method,
+		Proto:         r.RequestContext.HTTP.Protocol,
+		Header:        header,
+		ContentLength: contentLength,
+		Body:          ioutil.NopCloser(b),
+		RemoteAddr:    r.RequestContext.HTTP.SourceIP,
+		Host:          host,
+		RequestURI:    uri,
+		URL:           u,
+	}
+	return &req, nil
 }
