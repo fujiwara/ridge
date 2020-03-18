@@ -7,7 +7,6 @@ AWS Lambda HTTP Proxy integration event bridge to Go net/http.
 ridge is a bridge to convert API Gateway with Lambda Proxy Integration request/response and net/http.Request and net/http.ResponseWriter.
 
 - API Gateway with Lambda Proxy Integration through a Proxy Resource
-- [Apex](http://apex.run/)
 
 ```go
 package main
@@ -23,7 +22,7 @@ func main() {
 	var mux = http.NewServeMux()
 	mux.HandleFunc("/", handleRoot)
 	mux.HandleFunc("/hello", handleHello)
-	ridge.Run(":8080", "/api", mux)
+	ridge.Run(":8080", "/", mux)
 }
 
 func handleHello(w http.ResponseWriter, r *http.Request) {
@@ -38,12 +37,13 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-1. Run `apex init`.
-2. Place main.go to functions/example/.
-3. Edit project.json
-  - `"runtime": "golang"`
-4. Run `apex deploy`
-5. Create API Gateway Proxy Integration. http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-set-up-simple-proxy.html
+1. Create IAM role "ridge" for Lambda which have attached policy AWSLambdaBasicExecutionRole.
+1. Install [lambroll](https://github.com/fujiwara/lambroll).
+1. Place main.go to example/.
+1. Run `make deploy` to deploy a lambda function.
+1. Create API Gateway with the lambda function.
+  - for HTTP API https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html
+  - for REST API http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-set-up-simple-proxy.html
 
 ### ridge.Run(address, prefix, handler)
 
