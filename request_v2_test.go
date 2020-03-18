@@ -26,7 +26,7 @@ func TestGetRequestV2(t *testing.T) {
 	if r.Method != "GET" {
 		t.Errorf("Method: %s is not expected", r.Method)
 	}
-	u, _ := url.Parse("/?foo=1&foo=2&bar=3")
+	u, _ := url.Parse("/%E3%83%9E%E3%83%AB%E3%83%81%E3%83%90%E3%82%A4%E3%83%88?foo=1&foo=2&bar=3")
 	if r.URL.String() != u.String() {
 		t.Errorf("URL: %s is not expected", r.URL)
 	}
