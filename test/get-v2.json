@@ -1,0 +1,40 @@
+{
+  "version": "2.0",
+  "routeKey": "ANY /",
+  "rawPath": "/マルチバイト",
+  "rawQueryString": "foo=1&foo=2&bar=3",
+  "headers": {
+    "accept": "*/*",
+    "content-length": "0",
+    "host": "abcdefg.execute-api.ap-northeast-1.amazonaws.com",
+    "user-agent": "curl/7.68.0",
+    "x-amzn-trace-id": "Root=1-5e723e47-2ffda90008b1b60064fac400",
+    "x-forwarded-for": "203.0.113.1",
+    "x-forwarded-port": "443",
+    "x-forwarded-proto": "https"
+  },
+  "queryStringParameters": {
+    "bar": "3",
+    "foo": "1,2"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "abcdefg",
+    "domainName": "abcdefg.execute-api.ap-northeast-1.amazonaws.com",
+    "domainPrefix": "abcdefg",
+    "http": {
+      "method": "GET",
+      "path": "/",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "203.0.113.1",
+      "userAgent": "curl/7.68.0"
+    },
+    "requestId": "Jl6rIhtwNjMEJLQ=",
+    "routeId": null,
+    "routeKey": "ANY /",
+    "stage": "$default",
+    "time": "18/Mar/2020:15:29:11 +0000",
+    "timeEpoch": 1584545351102
+  },
+  "isBase64Encoded": true
+}
