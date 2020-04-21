@@ -18,7 +18,7 @@ import (
 var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/xml"}
 
 // DefaultContentType is a default content-type when missing in response.
-var DefaultContentType = "text/plain"
+var DefaultContentType = "text/plain; charset=utf-8"
 
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
