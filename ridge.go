@@ -55,6 +55,9 @@ func (w *ResponseWriter) Response() Response {
 	body := w.String()
 	isBase64Encoded := false
 
+	if t := w.header.Get("Content-Type"); t == "" {
+		w.header.Set("Content-Type", "text/plain")
+	}
 	h := make(map[string]string, len(w.header))
 	for key := range w.header {
 		v := w.header.Get(key)
