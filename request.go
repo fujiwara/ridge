@@ -51,11 +51,15 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 	switch r.Version {
 	case "2.0":
 		var rv2 RequestV2
-		json.Unmarshal(event, &rv2)
+		if err := json.Unmarshal(event, &rv2); err != nil {
+			return nil, err
+		}
 		return rv2.httpRequest()
 	case "1.0", "":
 		var rv1 RequestV1
-		json.Unmarshal(event, &rv1)
+		if err := json.Unmarshal(event, &rv1); err != nil {
+			return nil, err
+		}
 		return rv1.httpRequest()
 	default:
 		return nil, fmt.Errorf("Payload Version %s is not supported", r.Version)

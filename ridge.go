@@ -17,6 +17,9 @@ import (
 // TextMimeTypes is a list of identified as text.
 var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/xml"}
 
+// DefaultContentType is a default content-type when missing in response.
+var DefaultContentType = "text/plain; charset=utf-8"
+
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
 	StatusCode        int               `json:"statusCode"`
@@ -55,6 +58,9 @@ func (w *ResponseWriter) Response() Response {
 	body := w.String()
 	isBase64Encoded := false
 
+	if t := w.header.Get("Content-Type"); t == "" {
+		w.header.Set("Content-Type", DefaultContentType)
+	}
 	h := make(map[string]string, len(w.header))
 	for key := range w.header {
 		v := w.header.Get(key)

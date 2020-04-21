@@ -162,6 +162,9 @@ func TestResponseWriter(t *testing.T) {
 	if res.IsBase64Encoded != false {
 		t.Error("set isBase64Encoded = true, but this is text response")
 	}
+	if res.Headers["Content-Type"] != "text/plain; charset=utf-8" {
+		t.Error("invalid content-type")
+	}
 }
 
 func TestResponseWriter__Image(t *testing.T) {
@@ -187,5 +190,8 @@ func TestResponseWriter__Image(t *testing.T) {
 	}
 	if res.Body != expectedBody {
 		t.Errorf("base64 encoded body is not match: got=%s", res.Body)
+	}
+	if res.Headers["Content-Type"] != "image/png" {
+		t.Error("invalid content-type")
 	}
 }
