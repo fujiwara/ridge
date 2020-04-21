@@ -162,7 +162,7 @@ func TestResponseWriter(t *testing.T) {
 	if res.IsBase64Encoded != false {
 		t.Error("set isBase64Encoded = true, but this is text response")
 	}
-	if res.Headers["Content-Type"] != "text/plain" {
+	if res.Headers["Content-Type"] != "text/plain; charset=utf-8" {
 		t.Error("invalid content-type")
 	}
 }
