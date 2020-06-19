@@ -10,6 +10,7 @@ require (
 	github.com/garyburd/redigo v1.6.0
 	github.com/kayac/parallel-benchmark v0.0.0-20151202131136-8767c01bdc44
 	github.com/mash/go-accesslog v1.1.0
+	github.com/pires/go-proxyproto v0.1.3
 	github.com/pkg/errors v0.8.1
 	github.com/tj/assert v0.0.0-20190920132354-ee03d75cd160 // indirect
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271 // indirect

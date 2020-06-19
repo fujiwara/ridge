@@ -6,13 +6,18 @@ import (
 	"encoding/json"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/apex/go-apex"
 	"github.com/aws/aws-lambda-go/lambda"
+	proxyproto "github.com/pires/go-proxyproto"
 )
+
+// ProxyProtocol is a flag to support PROXY Protocol
+var ProxyProtocol bool
 
 // TextMimeTypes is a list of identified as text.
 var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/xml"}
@@ -156,6 +161,14 @@ func Run(address, prefix string, mux http.Handler) {
 			m.Handle(prefix, http.StripPrefix(strings.TrimSuffix(prefix, "/"), mux))
 		}
 		log.Println("starting up with local httpd", address)
-		log.Fatal(http.ListenAndServe(address, m))
+		listener, err := net.Listen("tcp", address)
+		if err != nil {
+			log.Fatalf("couldn't listen to %s: %s", address, err.Error())
+		}
+		if ProxyProtocol {
+			log.Println("enables to PROXY protocol")
+			listener = &proxyproto.Listener{Listener: listener}
+		}
+		log.Fatal(http.Serve(listener, m))
 	}
 }
