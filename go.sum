@@ -18,6 +18,8 @@ github.com/kayac/parallel-benchmark v0.0.0-20151202131136-8767c01bdc44 h1:JKBQGx
 github.com/kayac/parallel-benchmark v0.0.0-20151202131136-8767c01bdc44/go.mod h1:dA/GP0Wp2oE0DEhLk0jZsrtUPkt8QuivH3o7GduayIA=
 github.com/mash/go-accesslog v1.1.0 h1:y22583qP3s+SePBs6mv8ZTz5D1UffPrSg+WFEW2Rf/c=
 github.com/mash/go-accesslog v1.1.0/go.mod h1:DAbGQzio0KX16krP/3uouoTPxGbzcPjFAb948zazOgg=
+github.com/pires/go-proxyproto v0.1.3 h1:2XEuhsQluSNA5QIQkiUv8PfgZ51sNYIQkq/yFquiSQM=
+github.com/pires/go-proxyproto v0.1.3/go.mod h1:Odh9VFOZJCf9G8cLW5o435Xf1J95Jw9Gw5rnCjcwzAY=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
