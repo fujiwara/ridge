@@ -120,7 +120,8 @@ func isTextMime(kind string) bool {
 // If it is running on Apex (APEX_FUNCTION_NAME environment variable defined), call apex.HandleFunc().
 // Otherwise start net/http server using prefix and address.
 func Run(address, prefix string, mux http.Handler) {
-	if env := os.Getenv("AWS_EXECUTION_ENV"); env != "" {
+	env := os.Getenv("AWS_EXECUTION_ENV")
+	if strings.HasPrefix(env, "AWS_Lambda") {
 		handler := func(event json.RawMessage) (interface{}, error) {
 			r, err := NewRequest(event)
 			if err != nil {
