@@ -11,7 +11,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/apex/go-apex"
 	"github.com/aws/aws-lambda-go/lambda"
 	proxyproto "github.com/pires/go-proxyproto"
 )
@@ -116,12 +115,10 @@ func isTextMime(kind string) bool {
 	return isText
 }
 
-// Run runs http handler on Apex(nodejs runtime), go runtime, or net/http's server.
-// If it is running on Apex (APEX_FUNCTION_NAME environment variable defined), call apex.HandleFunc().
-// Otherwise start net/http server using prefix and address.
+// Run runs http handler on AWS Lambda runtime or net/http's server.
 func Run(address, prefix string, mux http.Handler) {
-	env := os.Getenv("AWS_EXECUTION_ENV")
-	if strings.HasPrefix(env, "AWS_Lambda") {
+	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
+		// go1.x or custom runtime(provided, provided.al2)
 		handler := func(event json.RawMessage) (interface{}, error) {
 			r, err := NewRequest(event)
 			if err != nil {
@@ -132,25 +129,7 @@ func Run(address, prefix string, mux http.Handler) {
 			mux.ServeHTTP(w, r)
 			return w.Response(), nil
 		}
-		if strings.HasPrefix(env, "AWS_Lambda_nodejs") && os.Getenv("APEX_FUNCTION_NAME") != "" {
-			// Apex (node runtime)
-			apex.HandleFunc(
-				func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
-					// redirect stdout to stderr in Apex functions
-					stdout := os.Stdout
-					os.Stdout = os.Stderr
-					defer func() {
-						os.Stdout = stdout
-					}()
-					return handler(event)
-				},
-			)
-		} else if strings.HasPrefix(env, "AWS_Lambda_go") || strings.HasPrefix(env, "AWS_Lambda_provided") {
-			// native Go runtime or custom runtime
-			lambda.Start(handler)
-		} else {
-			log.Printf("Environment %s is not supported", env)
-		}
+		lambda.Start(handler)
 	} else {
 		m := http.NewServeMux()
 		switch {

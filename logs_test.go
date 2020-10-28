@@ -6,7 +6,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/apex/go-apex"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/fujiwara/ridge"
 )
 
@@ -42,7 +42,7 @@ func TestDecodeLogStream(t *testing.T) {
 }
 
 func ExampleDecodeLogStream() {
-	apex.HandleFunc(func(event json.RawMessage, ctx *apex.Context) (interface{}, error) {
+	lambda.Start(func(event json.RawMessage) (interface{}, error) {
 		logStream, err := ridge.DecodeLogStream(event)
 		if err != nil {
 			return nil, err
