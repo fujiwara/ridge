@@ -145,8 +145,8 @@ func Run(address, prefix string, mux http.Handler) {
 					return handler(event)
 				},
 			)
-		} else if strings.HasPrefix(env, "AWS_Lambda_go") {
-			// native Go runtime
+		} else if strings.HasPrefix(env, "AWS_Lambda_go") || strings.HasPrefix(env, "AWS_Lambda_provided") {
+			// native Go runtime or custom runtime
 			lambda.Start(handler)
 		} else {
 			log.Printf("Environment %s is not supported", env)
