@@ -49,9 +49,8 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 `ridge.Run(address, prefix, handler)` works as below.
 
-- If a process is running on Lambda (`AWS_EXECUTION_ENV` environment variable defined),
-  - Call apex.HandleFunc() when runtime is nodejs*
-  - Call lambda.Start() when runtime is go1.x
+- If a process is running on Lambda (`AWS_EXECUTION_ENV` or `AWS_LAMBDA_RUNTIME_API` environment variable defined),
+  - Call lambda.Start()
 - Otherwise start a net/http server using prefix and address.
 
 ## LICENSE
