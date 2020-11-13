@@ -2,6 +2,7 @@ package ridge
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	proxyproto "github.com/pires/go-proxyproto"
@@ -117,6 +119,11 @@ func isTextMime(kind string) bool {
 
 // Run runs http handler on AWS Lambda runtime or net/http's server.
 func Run(address, prefix string, mux http.Handler) {
+	RunWithContext(context.Background(), address, prefix, mux)
+}
+
+// RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
+func RunWithContext(ctx context.Context, address, prefix string, mux http.Handler) {
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// go1.x or custom runtime(provided, provided.al2)
 		handler := func(event json.RawMessage) (interface{}, error) {
@@ -129,7 +136,7 @@ func Run(address, prefix string, mux http.Handler) {
 			mux.ServeHTTP(w, r)
 			return w.Response(), nil
 		}
-		lambda.Start(handler)
+		lambda.StartWithContext(ctx, handler)
 	} else {
 		m := http.NewServeMux()
 		switch {
@@ -149,6 +156,21 @@ func Run(address, prefix string, mux http.Handler) {
 			log.Println("enables to PROXY protocol")
 			listener = &proxyproto.Listener{Listener: listener}
 		}
-		log.Fatal(http.Serve(listener, m))
+		srv := http.Server{Handler: m}
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-ctx.Done()
+			log.Println("shutting down local httpd", address)
+			srv.Shutdown(ctx)
+		}()
+		if err := srv.Serve(listener); err != nil {
+			if err != http.ErrServerClosed {
+				log.Fatal(err)
+			}
+			wg.Done()
+		}
+		wg.Wait()
 	}
 }

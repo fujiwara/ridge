@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/fujiwara/ridge"
 )
@@ -17,7 +22,17 @@ func init() {
 
 func main() {
 	ridge.ProxyProtocol = true
-	ridge.Run(":8080", "/", mux)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	go func() {
+		s := <-sigchan
+		log.Println("got signal", s)
+		cancel()
+	}()
+	ridge.RunWithContext(ctx, ":8080", "/", mux)
+	log.Println("shutdown complate")
 }
 
 func handleHello(w http.ResponseWriter, r *http.Request) {
