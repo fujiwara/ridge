@@ -14,9 +14,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/fatih/color"
+	"github.com/fujiwara/logutils"
 )
 
 type CLI struct {
+	LogLevel string `help:"Log level" default:"info" enum:"trace,debug,info,warn,error"`
+
 	Init struct {
 		Name        string `help:"Name of the project" required:""`
 		Description string `help:"Description of the project" default:""`
@@ -30,15 +34,20 @@ type CLI struct {
 		Port int `help:"Port to run the server on" default:"8080"`
 	} `cmd:"" help:"Run the current Ridge project in development mode on localhost"`
 
+	Deploy struct {
+		DryRun bool `help:"Dry run" default:"false"`
+		Build  bool `help:"Build before deploy" default:"true" negatable:""`
+	} `cmd:"" help:"Deploy the current Ridge project to AWS Lambda"`
+
 	awscfg aws.Config
 }
 
 func Run(ctx context.Context) error {
 	cli := &CLI{}
+	kongCtx := kong.Parse(cli)
 	if err := cli.prepare(ctx); err != nil {
 		return err
 	}
-	kongCtx := kong.Parse(cli)
 	switch kongCtx.Command() {
 	case "init":
 		return cli.RunInit(ctx)
@@ -46,6 +55,8 @@ func Run(ctx context.Context) error {
 		return cli.RunBuild(ctx)
 	case "dev":
 		return cli.RunDev(ctx)
+	case "deploy":
+		return cli.RunDeploy(ctx)
 	default:
 	}
 	return fmt.Errorf("unknown command: %s", kongCtx.Command())
@@ -108,6 +119,21 @@ func (cli *CLI) prepare(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	filter := &logutils.LevelFilter{
+		Levels: []logutils.LogLevel{"trace", "debug", "info", "warn", "error"},
+		ModifierFuncs: []logutils.ModifierFunc{
+			logutils.Color(color.FgHiBlack), // trace
+			logutils.Color(color.FgHiBlack), // debug
+			nil,                             // info
+			logutils.Color(color.FgYellow),  // warn
+			logutils.Color(color.FgRed),     // error
+		},
+		MinLevel: logutils.LogLevel(cli.LogLevel),
+		Writer:   os.Stderr,
+	}
+	log.SetOutput(filter)
+
 	return nil
 }
 
@@ -182,6 +208,28 @@ func (cli *CLI) RunDev(ctx context.Context) error {
 	c := exec.CommandContext(ctx, "go", args...)
 	c.Env = os.Environ()
 	c.Env = append(c.Env, "RIDGE_ADDR="+fmt.Sprintf(":%d", cli.Dev.Port))
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
+	return c.Run()
+}
+
+func (cli *CLI) RunDeploy(ctx context.Context) error {
+	if cli.Deploy.Build {
+		if err := cli.RunBuild(ctx); err != nil {
+			return err
+		}
+	} else {
+		log.Println("[info] skipping build")
+	}
+	args := []string{
+		"deploy",
+		"--log-level", cli.LogLevel,
+	}
+	if cli.Deploy.DryRun {
+		args = append(args, "--dry-run")
+	}
+	c := exec.CommandContext(ctx, "lambroll", args...)
+	c.Env = os.Environ()
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	return c.Run()
