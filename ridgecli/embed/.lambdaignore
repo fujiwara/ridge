@@ -1,0 +1,7 @@
+.git/*
+.lambdaignore
+.gitignore
+function.json*
+*.go
+go.mod
+go.sum
