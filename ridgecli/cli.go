@@ -79,12 +79,8 @@ var goFileHook = func(ctx context.Context, path string) error {
 		{"get", "."},
 	}
 	for _, args := range argss {
-		log.Println("[info] running: go", strings.Join(args, " "))
-		c := exec.CommandContext(ctx, "go", args...)
-		c.Stderr = os.Stderr
-		c.Stdout = os.Stdout
-		if err := c.Run(); err != nil {
-			return fmt.Errorf("failed to run go %s: %w", strings.Join(args, " "), err)
+		if err := executeCommand(ctx, "go", args, nil); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -183,34 +179,19 @@ func (cli *CLI) generateFile(ctx context.Context, info generateFileInfo) error {
 }
 
 func (cli *CLI) RunBuild(ctx context.Context) error {
-	args := []string{"build", "-o", "bootstrap", "main.go"}
-	log.Println("[info] running: go", strings.Join(args, " "))
-	c := exec.CommandContext(ctx, "go", args...)
-	envs := os.Environ()
-	for _, env := range envs {
-		if strings.HasPrefix(env, "GOOS=") || strings.HasPrefix(env, "GOARCH=") || strings.HasPrefix(env, "CGO_ENABLED=") {
-			continue
-		}
-		envs = append(envs, env)
+	env := map[string]string{
+		"GOOS":        "linux",
+		"GOARCH":      "amd64",
+		"CGO_ENABLED": "0",
 	}
-	envs = append(envs, "GOOS=linux")
-	envs = append(envs, "GOARCH=amd64")
-	envs = append(envs, "CGO_ENABLED=0")
-	c.Env = envs
-	c.Stderr = os.Stderr
-	c.Stdout = os.Stdout
-	return c.Run()
+	return executeCommand(ctx, "go", []string{"build", "-o", "bootstrap", "main.go"}, env)
 }
 
 func (cli *CLI) RunDev(ctx context.Context) error {
 	args := []string{"run", "main.go"}
-	log.Println("[info] running: go", strings.Join(args, " "))
-	c := exec.CommandContext(ctx, "go", args...)
-	c.Env = os.Environ()
-	c.Env = append(c.Env, "RIDGE_ADDR="+fmt.Sprintf(":%d", cli.Dev.Port))
-	c.Stderr = os.Stderr
-	c.Stdout = os.Stdout
-	return c.Run()
+	return executeCommand(ctx, "go", args, map[string]string{
+		"RIDGE_ADDR": fmt.Sprintf(":%d", cli.Dev.Port),
+	})
 }
 
 func (cli *CLI) RunDeploy(ctx context.Context) error {
@@ -228,9 +209,30 @@ func (cli *CLI) RunDeploy(ctx context.Context) error {
 	if cli.Deploy.DryRun {
 		args = append(args, "--dry-run")
 	}
-	c := exec.CommandContext(ctx, "lambroll", args...)
-	c.Env = os.Environ()
+	return executeCommand(ctx, "lambroll", args, nil)
+}
+
+func executeCommand(ctx context.Context, name string, args []string, overrideEnv map[string]string) error {
+	log.Println("[info] running:", name, strings.Join(args, " "))
+	c := exec.CommandContext(ctx, name, args...)
+	envs := make([]string, 0, len(os.Environ()))
+ENV:
+	for _, env := range os.Environ() {
+		for key, _ := range overrideEnv {
+			if strings.HasPrefix(env, key+"=") {
+				continue ENV
+			}
+		}
+		envs = append(envs, env)
+	}
+	for key, value := range overrideEnv {
+		envs = append(envs, key+"="+value)
+	}
+	c.Env = envs
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
-	return c.Run()
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("failed to execute %s: %w", name, err)
+	}
+	return nil
 }
