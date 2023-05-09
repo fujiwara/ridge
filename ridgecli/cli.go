@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,8 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/fatih/color"
 	"github.com/fujiwara/logutils"
@@ -45,6 +48,9 @@ type CLI struct {
 		Follow bool `help:"Follow logs" default:"false"`
 	} `cmd:"" help:"Show logs of the current Ridge project"`
 
+	Info struct {
+	} `cmd:"" help:"Show information about the current Ridge project"`
+
 	awscfg aws.Config
 }
 
@@ -65,6 +71,8 @@ func Run(ctx context.Context) error {
 		return cli.RunDeploy(ctx)
 	case "logs":
 		return cli.RunLogs(ctx)
+	case "info":
+		return cli.RunInfo(ctx)
 	default:
 	}
 	return fmt.Errorf("unknown command: %s", kongCtx.Command())
@@ -168,6 +176,7 @@ func (cli *CLI) generateFile(ctx context.Context, info generateFileInfo) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	if info.isTemplate {
 		// template file
 		tmpl := template.Must(template.New(info.path).Parse(string(info.src)))
@@ -207,6 +216,10 @@ func (cli *CLI) RunDev(ctx context.Context) error {
 }
 
 func (cli *CLI) RunDeploy(ctx context.Context) error {
+	fn, err := loadFunction("function.json")
+	if err != nil {
+		return err
+	}
 	if cli.Deploy.Build {
 		if err := cli.RunBuild(ctx); err != nil {
 			return err
@@ -221,7 +234,13 @@ func (cli *CLI) RunDeploy(ctx context.Context) error {
 	if cli.Deploy.DryRun {
 		args = append(args, "--dry-run")
 	}
-	return executeCommand(ctx, "lambroll", args, nil)
+	if err := executeCommand(ctx, "lambroll", args, nil); err != nil {
+		return err
+	}
+	if cli.Deploy.DryRun {
+		return nil
+	}
+	return cli.deployFunctionURL(ctx, fn)
 }
 
 func (cli *CLI) RunLogs(ctx context.Context) error {
@@ -294,4 +313,73 @@ func loadFunction(path string) (*Function, error) {
 		return nil, err
 	}
 	return &fn, nil
+}
+
+func (cli *CLI) deployFunctionURL(ctx context.Context, fn *Function) error {
+	qualifier := aws.String("current")
+	svc := lambda.NewFromConfig(cli.awscfg)
+
+	if out, err := svc.GetFunctionUrlConfig(ctx, &lambda.GetFunctionUrlConfigInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    qualifier,
+	}); err == nil {
+		log.Println("[info] function url:", *out.FunctionUrl)
+		return nil
+	} else {
+		var notfound *types.ResourceNotFoundException
+		if !errors.As(err, &notfound) {
+			return err
+		}
+	}
+	log.Println("[info] function url: not found, creating...")
+
+	if out, err := svc.CreateFunctionUrlConfig(ctx, &lambda.CreateFunctionUrlConfigInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    qualifier,
+		AuthType:     types.FunctionUrlAuthTypeNone,
+	}); err != nil {
+		return err
+	} else {
+		log.Println("[info] function url:", *out.FunctionUrl)
+	}
+
+	if _, err := svc.AddPermission(ctx, &lambda.AddPermissionInput{
+		Action:              aws.String("lambda:InvokeFunctionUrl"),
+		FunctionName:        &fn.FunctionName,
+		Principal:           aws.String("*"),
+		Qualifier:           qualifier,
+		FunctionUrlAuthType: types.FunctionUrlAuthTypeNone,
+		StatementId:         aws.String("FunctionURLAllowPublicAccess"),
+	}); err != nil {
+		return err
+	}
+	log.Println("[info] added invoke permission for * to function URL")
+	return nil
+}
+
+func (cli *CLI) RunInfo(ctx context.Context) error {
+	fn, err := loadFunction("function.json")
+	if err != nil {
+		return err
+	}
+	svc := lambda.NewFromConfig(cli.awscfg)
+	if out, err := svc.GetFunction(ctx, &lambda.GetFunctionInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    aws.String("current"),
+	}); err != nil {
+		return err
+	} else {
+		b, _ := json.MarshalIndent(out.Configuration, "", "  ")
+		log.Printf("[info] deployed function: %s", string(b))
+	}
+
+	if out, err := svc.GetFunctionUrlConfig(ctx, &lambda.GetFunctionUrlConfigInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    aws.String("current"),
+	}); err != nil {
+		return err
+	} else {
+		log.Println("[info] function url:", *out.FunctionUrl)
+	}
+	return nil
 }
