@@ -1,0 +1,385 @@
+package ridgecli
+
+import (
+	"context"
+	_ "embed"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"strings"
+	"text/template"
+
+	"github.com/alecthomas/kong"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/fatih/color"
+	"github.com/fujiwara/logutils"
+)
+
+type CLI struct {
+	LogLevel string `help:"Log level" default:"info" enum:"trace,debug,info,warn,error"`
+
+	Init struct {
+		Name        string `help:"Name of the project" required:""`
+		Description string `help:"Description of the project" default:""`
+		AccountID   string `help:"AWS Account ID"`
+		Arch        string `help:"Architecture of the project" default:"x86_64" enum:"x86_64,arm64"`
+	} `cmd:"" help:"Initialize a new Ridge project"`
+
+	Build struct {
+	} `cmd:"" help:"Build the current Ridge project"`
+
+	Dev struct {
+		Port int `help:"Port to run the server on" default:"8080"`
+	} `cmd:"" help:"Run the current Ridge project in development mode on localhost"`
+
+	Deploy struct {
+		DryRun bool `help:"Dry run" default:"false"`
+		Build  bool `help:"Build before deploy" default:"true" negatable:""`
+	} `cmd:"" help:"Deploy the current Ridge project to AWS Lambda using lambroll"`
+
+	Logs struct {
+		Follow bool `help:"Follow logs" default:"false"`
+	} `cmd:"" help:"Show logs of the current Ridge project"`
+
+	Info struct {
+	} `cmd:"" help:"Show information about the current Ridge project"`
+
+	awscfg aws.Config
+}
+
+func Run(ctx context.Context) error {
+	cli := &CLI{}
+	kongCtx := kong.Parse(cli)
+	if err := cli.prepare(ctx); err != nil {
+		return err
+	}
+	switch kongCtx.Command() {
+	case "init":
+		return cli.RunInit(ctx)
+	case "build":
+		return cli.RunBuild(ctx)
+	case "dev":
+		return cli.RunDev(ctx)
+	case "deploy":
+		return cli.RunDeploy(ctx)
+	case "logs":
+		return cli.RunLogs(ctx)
+	case "info":
+		return cli.RunInfo(ctx)
+	default:
+	}
+	return fmt.Errorf("unknown command: %s", kongCtx.Command())
+}
+
+type generateFileInfo struct {
+	path       string
+	src        []byte
+	hook       func(context.Context, string) error
+	isTemplate bool
+}
+
+//go:embed embed/main.go
+var mainGoSrc []byte
+var goFileHook = func(ctx context.Context, path string) error {
+	argss := [][]string{
+		{"fmt", path},
+		{"mod", "init"},
+		{"mod", "tidy"},
+		{"get", "."},
+	}
+	for _, args := range argss {
+		if err := executeCommand(ctx, "go", args, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+//go:embed embed/function.json
+var functionJSONSrc []byte
+
+//go:embed embed/.lambdaignore
+var lambdaIgnoreSrc []byte
+
+var generateFiles = []generateFileInfo{
+	{
+		path: "main.go",
+		src:  mainGoSrc,
+		hook: goFileHook,
+	},
+	{
+		path:       "function.json",
+		src:        functionJSONSrc,
+		isTemplate: true,
+	},
+	{
+		path: ".lambdaignore",
+		src:  lambdaIgnoreSrc,
+	},
+}
+
+func (cli *CLI) prepare(ctx context.Context) error {
+	var err error
+	cli.awscfg, err = config.LoadDefaultConfig(ctx, config.WithRegion(os.Getenv("AWS_REGION")))
+	if err != nil {
+		return err
+	}
+
+	filter := &logutils.LevelFilter{
+		Levels: []logutils.LogLevel{"trace", "debug", "info", "warn", "error"},
+		ModifierFuncs: []logutils.ModifierFunc{
+			logutils.Color(color.FgHiBlack), // trace
+			logutils.Color(color.FgHiBlack), // debug
+			nil,                             // info
+			logutils.Color(color.FgYellow),  // warn
+			logutils.Color(color.FgRed),     // error
+		},
+		MinLevel: logutils.LogLevel(cli.LogLevel),
+		Writer:   os.Stderr,
+	}
+	log.SetOutput(filter)
+
+	return nil
+}
+
+func (cli *CLI) RunInit(ctx context.Context) error {
+	log.Println("[info] initializing Ridge project")
+	client := sts.NewFromConfig(cli.awscfg)
+	out, err := client.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return err
+	}
+	cli.Init.AccountID = *out.Account
+	log.Println("[info] AWS AccountID:", cli.Init.AccountID)
+	for _, f := range generateFiles {
+		if err := cli.generateFile(ctx, f); err != nil {
+			return fmt.Errorf("failed to create %s: %w", f.path, err)
+		}
+	}
+	return nil
+}
+
+func (cli *CLI) generateFile(ctx context.Context, info generateFileInfo) error {
+	if _, err := os.Stat(info.path); err == nil {
+		return fmt.Errorf("%s already exists", info.path)
+	}
+	log.Printf("[info] creating %s", info.path)
+
+	f, err := os.Create(info.path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if info.isTemplate {
+		// template file
+		tmpl := template.Must(template.New(info.path).Parse(string(info.src)))
+		if err := tmpl.Execute(f, cli.Init); err != nil {
+			return err
+		}
+	} else {
+		// normal file
+		if _, err := f.Write(info.src); err != nil {
+			return err
+		}
+	}
+	if info.hook == nil {
+		return nil
+	}
+	return info.hook(ctx, info.path)
+}
+
+func (cli *CLI) RunBuild(ctx context.Context) error {
+	fn, err := loadFunction("function.json")
+	if err != nil {
+		return err
+	}
+	env := map[string]string{
+		"GOOS":        "linux",
+		"GOARCH":      goarch(fn.Architectures[0]),
+		"CGO_ENABLED": "0",
+	}
+	return executeCommand(ctx, "go", []string{"build", "-o", fn.Handler, "main.go"}, env)
+}
+
+func (cli *CLI) RunDev(ctx context.Context) error {
+	args := []string{"run", "main.go"}
+	return executeCommand(ctx, "go", args, map[string]string{
+		"RIDGE_ADDR": fmt.Sprintf(":%d", cli.Dev.Port),
+	})
+}
+
+func (cli *CLI) RunDeploy(ctx context.Context) error {
+	fn, err := loadFunction("function.json")
+	if err != nil {
+		return err
+	}
+	if cli.Deploy.Build {
+		if err := cli.RunBuild(ctx); err != nil {
+			return err
+		}
+	} else {
+		log.Println("[info] skipping build")
+	}
+	args := []string{
+		"deploy",
+		"--log-level", cli.LogLevel,
+	}
+	if cli.Deploy.DryRun {
+		args = append(args, "--dry-run")
+	}
+	if err := executeCommand(ctx, "lambroll", args, nil); err != nil {
+		return err
+	}
+	if cli.Deploy.DryRun {
+		return nil
+	}
+	return cli.deployFunctionURL(ctx, fn)
+}
+
+func (cli *CLI) RunLogs(ctx context.Context) error {
+	args := []string{
+		"logs",
+		"--log-level", cli.LogLevel,
+	}
+	if cli.Logs.Follow {
+		args = append(args, "--follow")
+	}
+	return executeCommand(ctx, "lambroll", args, nil)
+}
+
+func executeCommand(ctx context.Context, name string, args []string, overrideEnv map[string]string) error {
+	log.Println("[info] running:", name, strings.Join(args, " "))
+	c := exec.CommandContext(ctx, name, args...)
+	envs := make([]string, 0, len(os.Environ()))
+ENV:
+	for _, env := range os.Environ() {
+		for key, _ := range overrideEnv {
+			if strings.HasPrefix(env, key+"=") {
+				continue ENV
+			}
+		}
+		envs = append(envs, env)
+	}
+	for key, value := range overrideEnv {
+		envs = append(envs, key+"="+value)
+	}
+	c.Env = envs
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
+	if err := c.Run(); err != nil {
+		return fmt.Errorf("failed to execute %s: %w", name, err)
+	}
+	return nil
+}
+
+func goarch(s string) string {
+	ls := strings.ToLower(s)
+	if ls == "x86_64" {
+		return "amd64"
+	}
+	return ls
+}
+
+type Function struct {
+	Architectures []string          `json:"Architectures"`
+	Description   string            `json:"Description"`
+	FunctionName  string            `json:"FunctionName"`
+	Handler       string            `json:"Handler"`
+	MemorySize    int64             `json:"MemorySize"`
+	Role          string            `json:"Role"`
+	Runtime       string            `json:"Runtime"`
+	Tags          map[string]string `json:"Tags"`
+	Timeout       int64             `json:"Timeout"`
+	TracingConfig struct {
+		Mode string `json:"Mode"`
+	} `json:"TracingConfig"`
+}
+
+func loadFunction(path string) (*Function, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var fn Function
+	if err := json.NewDecoder(f).Decode(&fn); err != nil {
+		return nil, err
+	}
+	return &fn, nil
+}
+
+func (cli *CLI) deployFunctionURL(ctx context.Context, fn *Function) error {
+	qualifier := aws.String("current")
+	svc := lambda.NewFromConfig(cli.awscfg)
+
+	if out, err := svc.GetFunctionUrlConfig(ctx, &lambda.GetFunctionUrlConfigInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    qualifier,
+	}); err == nil {
+		log.Println("[info] function url:", *out.FunctionUrl)
+		return nil
+	} else {
+		var notfound *types.ResourceNotFoundException
+		if !errors.As(err, &notfound) {
+			return err
+		}
+	}
+	log.Println("[info] function url: not found, creating...")
+
+	if out, err := svc.CreateFunctionUrlConfig(ctx, &lambda.CreateFunctionUrlConfigInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    qualifier,
+		AuthType:     types.FunctionUrlAuthTypeNone,
+	}); err != nil {
+		return err
+	} else {
+		log.Println("[info] function url:", *out.FunctionUrl)
+	}
+
+	if _, err := svc.AddPermission(ctx, &lambda.AddPermissionInput{
+		Action:              aws.String("lambda:InvokeFunctionUrl"),
+		FunctionName:        &fn.FunctionName,
+		Principal:           aws.String("*"),
+		Qualifier:           qualifier,
+		FunctionUrlAuthType: types.FunctionUrlAuthTypeNone,
+		StatementId:         aws.String("FunctionURLAllowPublicAccess"),
+	}); err != nil {
+		return err
+	}
+	log.Println("[info] added invoke permission for * to function URL")
+	return nil
+}
+
+func (cli *CLI) RunInfo(ctx context.Context) error {
+	fn, err := loadFunction("function.json")
+	if err != nil {
+		return err
+	}
+	svc := lambda.NewFromConfig(cli.awscfg)
+	if out, err := svc.GetFunction(ctx, &lambda.GetFunctionInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    aws.String("current"),
+	}); err != nil {
+		return err
+	} else {
+		b, _ := json.MarshalIndent(out.Configuration, "", "  ")
+		log.Printf("[info] deployed function: %s", string(b))
+	}
+
+	if out, err := svc.GetFunctionUrlConfig(ctx, &lambda.GetFunctionUrlConfigInput{
+		FunctionName: &fn.FunctionName,
+		Qualifier:    aws.String("current"),
+	}); err != nil {
+		return err
+	} else {
+		log.Println("[info] function url:", *out.FunctionUrl)
+	}
+	return nil
+}

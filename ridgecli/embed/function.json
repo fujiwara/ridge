@@ -1,0 +1,16 @@
+{
+    "Architectures": [
+        "{{ .Arch }}"
+    ],
+    "Description": "{{ .Description }}",
+    "FunctionName": "{{ .Name }}",
+    "Handler": "bootstrap",
+    "MemorySize": 128,
+    "Role": "arn:aws:iam::{{ .AccountID }}:role/AWSLambdaBasicExecutionRole",
+    "Runtime": "provided.al2",
+    "Tags": {},
+    "Timeout": 30,
+    "TracingConfig": {
+        "Mode": "PassThrough"
+    }
+}
