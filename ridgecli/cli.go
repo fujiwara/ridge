@@ -3,6 +3,7 @@ package ridgecli
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -25,6 +26,7 @@ type CLI struct {
 		Name        string `help:"Name of the project" required:""`
 		Description string `help:"Description of the project" default:""`
 		AccountID   string `help:"AWS Account ID"`
+		Arch        string `help:"Architecture of the project" default:"x86_64" enum:"x86_64,arm64"`
 	} `cmd:"" help:"Initialize a new Ridge project"`
 
 	Build struct {
@@ -37,7 +39,11 @@ type CLI struct {
 	Deploy struct {
 		DryRun bool `help:"Dry run" default:"false"`
 		Build  bool `help:"Build before deploy" default:"true" negatable:""`
-	} `cmd:"" help:"Deploy the current Ridge project to AWS Lambda"`
+	} `cmd:"" help:"Deploy the current Ridge project to AWS Lambda using lambroll"`
+
+	Logs struct {
+		Follow bool `help:"Follow logs" default:"false"`
+	} `cmd:"" help:"Show logs of the current Ridge project"`
 
 	awscfg aws.Config
 }
@@ -57,6 +63,8 @@ func Run(ctx context.Context) error {
 		return cli.RunDev(ctx)
 	case "deploy":
 		return cli.RunDeploy(ctx)
+	case "logs":
+		return cli.RunLogs(ctx)
 	default:
 	}
 	return fmt.Errorf("unknown command: %s", kongCtx.Command())
@@ -179,12 +187,16 @@ func (cli *CLI) generateFile(ctx context.Context, info generateFileInfo) error {
 }
 
 func (cli *CLI) RunBuild(ctx context.Context) error {
+	fn, err := loadFunction("function.json")
+	if err != nil {
+		return err
+	}
 	env := map[string]string{
 		"GOOS":        "linux",
-		"GOARCH":      "amd64",
+		"GOARCH":      goarch(fn.Architectures[0]),
 		"CGO_ENABLED": "0",
 	}
-	return executeCommand(ctx, "go", []string{"build", "-o", "bootstrap", "main.go"}, env)
+	return executeCommand(ctx, "go", []string{"build", "-o", fn.Handler, "main.go"}, env)
 }
 
 func (cli *CLI) RunDev(ctx context.Context) error {
@@ -212,6 +224,17 @@ func (cli *CLI) RunDeploy(ctx context.Context) error {
 	return executeCommand(ctx, "lambroll", args, nil)
 }
 
+func (cli *CLI) RunLogs(ctx context.Context) error {
+	args := []string{
+		"logs",
+		"--log-level", cli.LogLevel,
+	}
+	if cli.Logs.Follow {
+		args = append(args, "--follow")
+	}
+	return executeCommand(ctx, "lambroll", args, nil)
+}
+
 func executeCommand(ctx context.Context, name string, args []string, overrideEnv map[string]string) error {
 	log.Println("[info] running:", name, strings.Join(args, " "))
 	c := exec.CommandContext(ctx, name, args...)
@@ -235,4 +258,40 @@ ENV:
 		return fmt.Errorf("failed to execute %s: %w", name, err)
 	}
 	return nil
+}
+
+func goarch(s string) string {
+	ls := strings.ToLower(s)
+	if ls == "x86_64" {
+		return "amd64"
+	}
+	return ls
+}
+
+type Function struct {
+	Architectures []string          `json:"Architectures"`
+	Description   string            `json:"Description"`
+	FunctionName  string            `json:"FunctionName"`
+	Handler       string            `json:"Handler"`
+	MemorySize    int64             `json:"MemorySize"`
+	Role          string            `json:"Role"`
+	Runtime       string            `json:"Runtime"`
+	Tags          map[string]string `json:"Tags"`
+	Timeout       int64             `json:"Timeout"`
+	TracingConfig struct {
+		Mode string `json:"Mode"`
+	} `json:"TracingConfig"`
+}
+
+func loadFunction(path string) (*Function, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var fn Function
+	if err := json.NewDecoder(f).Decode(&fn); err != nil {
+		return nil, err
+	}
+	return &fn, nil
 }

@@ -1,6 +1,6 @@
 {
     "Architectures": [
-        "x86_64"
+        "{{ .Arch }}"
     ],
     "Description": "{{ .Description }}",
     "FunctionName": "{{ .Name }}",
