@@ -146,6 +146,8 @@ func TestResponseWriter(t *testing.T) {
 	w.Header().Add("Foo", "foo")
 	w.Header().Add("Bar", "bar1")
 	w.Header().Add("Bar", "bar2")
+	w.Header().Add("Set-Cookie", "cookie1=value1; Secure; HttpOnly")
+	w.Header().Add("Set-Cookie", "cookie2=value2; Domain=example.com; Path=/; Max-Age=3600; Secure; HttpOnly")
 	res := w.Response()
 	if res.StatusCode != 500 {
 		t.Error("unexpected status code", res.StatusCode)
@@ -164,6 +166,12 @@ func TestResponseWriter(t *testing.T) {
 	}
 	if res.Headers["Content-Type"] != "text/plain; charset=utf-8" {
 		t.Error("invalid content-type")
+	}
+	if res.Cookies[0] != "cookie1=value1; Secure; HttpOnly" {
+		t.Error("invalid cookie", res.Cookies[0])
+	}
+	if res.Cookies[1] != "cookie2=value2; Domain=example.com; Path=/; Max-Age=3600; Secure; HttpOnly" {
+		t.Error("invalid cookie", res.Cookies[1])
 	}
 }
 
