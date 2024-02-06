@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,7 +17,7 @@ func TestGetRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open test/get.json: %s", err)
 	}
-	body, _ := ioutil.ReadAll(f)
+	body, _ := io.ReadAll(f)
 	r, err := ridge.NewRequest(json.RawMessage(body))
 	if err != nil {
 		t.Fatalf("failed to decode getEvent: %s", err)
@@ -58,7 +57,7 @@ func TestPostRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open test/post.json: %s", err)
 	}
-	body, _ := ioutil.ReadAll(f)
+	body, _ := io.ReadAll(f)
 	r, err := ridge.NewRequest(json.RawMessage(body))
 	if err != nil {
 		t.Fatalf("failed to decode postEvent: %s", err)
@@ -96,7 +95,7 @@ func TestBase64EncodedRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open test/post.json: %s", err)
 	}
-	body, _ := ioutil.ReadAll(f)
+	body, _ := io.ReadAll(f)
 	r, err := ridge.NewRequest(json.RawMessage(body))
 	if err != nil {
 		t.Fatalf("failed to decode postEvent: %s", err)
@@ -176,7 +175,7 @@ func TestResponseWriter(t *testing.T) {
 }
 
 func TestResponseWriter__Image(t *testing.T) {
-	bs, err := ioutil.ReadFile("test/bluebox.png")
+	bs, err := os.ReadFile("test/bluebox.png")
 	if err != nil {
 		t.Error(err)
 	}
