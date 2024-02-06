@@ -2,8 +2,8 @@ package ridge_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/lambda"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestDecodeLogStream(t *testing.T) {
-	b, err := ioutil.ReadFile("test/logstream.json")
+	b, err := os.ReadFile("test/logstream.json")
 	if err != nil {
 		t.Error(err)
 		return

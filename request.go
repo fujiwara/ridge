@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -119,7 +118,7 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 		ProtoMinor:    1,
 		Header:        header,
 		ContentLength: contentLength,
-		Body:          ioutil.NopCloser(b),
+		Body:          io.NopCloser(b),
 		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
 		Host:          host,
 		RequestURI:    uri,
@@ -211,7 +210,7 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 		Proto:         r.RequestContext.HTTP.Protocol,
 		Header:        header,
 		ContentLength: contentLength,
-		Body:          ioutil.NopCloser(b),
+		Body:          io.NopCloser(b),
 		RemoteAddr:    r.RequestContext.HTTP.SourceIP,
 		Host:          host,
 		RequestURI:    uri,
