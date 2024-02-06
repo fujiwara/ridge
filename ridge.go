@@ -31,6 +31,7 @@ type Response struct {
 	StatusCode        int               `json:"statusCode"`
 	Headers           map[string]string `json:"headers"`
 	MultiValueHeaders http.Header       `json:"multiValueHeaders"`
+	Cookies           []string          `json:"cookies"`
 	Body              string            `json:"body"`
 	IsBase64Encoded   bool              `json:"isBase64Encoded"`
 }
@@ -78,10 +79,12 @@ func (w *ResponseWriter) Response() Response {
 	if isBase64Encoded {
 		body = base64.StdEncoding.EncodeToString(w.Bytes())
 	}
+
 	return Response{
 		StatusCode:        w.statusCode,
 		Headers:           h,
 		MultiValueHeaders: w.header,
+		Cookies:           w.header.Values("Set-Cookie"),
 		Body:              body,
 		IsBase64Encoded:   isBase64Encoded,
 	}
