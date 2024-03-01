@@ -3,11 +3,14 @@ package ridge_test
 import (
 	"encoding/json"
 	"io"
+	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/fujiwara/ridge"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGetRequestV2(t *testing.T) {
@@ -79,5 +82,38 @@ func TestPostRequestV2(t *testing.T) {
 	}
 	if r.ContentLength != 13 {
 		t.Errorf("Content-Length: %d is not expected", r.ContentLength)
+	}
+}
+
+func TestV2RoundTrip(t *testing.T) {
+	for name, newRequest := range roundTripRequest {
+		t.Run(name, func(t *testing.T) {
+			or := newRequest()
+			for k, v := range or.Header {
+				if len(v) > 1 && k != "Cookie" {
+					or.Header.Set(k, strings.Join(v, ",")) // join multiple headers with comma
+				}
+			}
+			od, _ := httputil.DumpRequest(or, true)
+
+			payload, err := ridge.ToRequestV2(or)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			b, _ := json.Marshal(payload)
+			t.Logf("payload: %s", string(b))
+			rr, err := ridge.NewRequest(json.RawMessage(b))
+			if err != nil {
+				t.Error("failed to decode RequestV1", err)
+			}
+
+			rd, _ := httputil.DumpRequest(rr, true)
+			t.Logf("original request: %s", od)
+			t.Logf("decoded request: %s", rd)
+			if d := cmp.Diff(od, rd); d != "" {
+				t.Error("request is not match", d)
+			}
+		})
 	}
 }
