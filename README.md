@@ -51,18 +51,19 @@ Also, you can switch the runtime environment between AWS Lambda and a standalone
 
 - If a process is running on Lambda (`AWS_EXECUTION_ENV` or `AWS_LAMBDA_RUNTIME_API` environment variable defined),
   - Call lambda.Start()
-- Otherwise start a net/http server using prefix and address.
+- Otherwise start a net/http server using path prefix and address.
+  - path prefix is used to strip the prefix from the request path.
 
 ### ridge.ToRequestV1(*http.Request)
 
 `ridge.ToRequestV1(*http.Request)` converts a net/http.Request to an API Gateway V1 event payload.
 
-This function is useful for calling your ridge application from another service that can invoke Lambda.
+This function helps call your ridge application handler directly from another service that can invoke Lambda.
 
 For example, you can invoke ridge application on Lambda from EventBridge, Step Functions, or another Lambda function with the payload that `ridge.ToRequestV1` returns.
 
-
 ```go
+req, _ := http.NewRequest("GET", "http://example.com/hello?name=ridge", nil)
 payload, _ := ridge.ToRequestV1(req)
 b, _ := json.Marshal(payload)
 input := &lambda.InvokeInput{
