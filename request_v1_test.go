@@ -3,13 +3,17 @@ package ridge_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/fujiwara/ridge"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGetRequest(t *testing.T) {
@@ -200,5 +204,56 @@ func TestResponseWriter__Image(t *testing.T) {
 	}
 	if res.Headers["Content-Type"] != "image/png" {
 		t.Error("invalid content-type")
+	}
+}
+
+var roundTripRequest = map[string]func() *http.Request{
+	"GET": func() *http.Request {
+		r, _ := http.NewRequest(http.MethodGet, "https://example.com/path/to/example?foo=bar+baz&foo=boo+uoo", nil)
+		r.Header.Set("Cookie", "foo=bar; xxx=yyy")
+		r.Header.Set("x-api-key", "zzz")
+		return r
+	},
+	"POST": func() *http.Request {
+		r, _ := http.NewRequest(http.MethodPost, "https://example.com/path/to/example", nil)
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("x-api-key", "zzz")
+		body := `{"foo":"bar baz"}`
+		r.Body = io.NopCloser(strings.NewReader(body))
+		r.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+		return r
+	},
+	"MultiValue": func() *http.Request {
+		r, _ := http.NewRequest(http.MethodGet, "https://example.com/path/to/example?foo=1&foo=2", nil)
+		r.Header.Add("foo", "bar")
+		r.Header.Add("foo", "baz")
+		return r
+	},
+}
+
+func TestV1RoundTrip(t *testing.T) {
+	for name, newRequest := range roundTripRequest {
+		t.Run(name, func(t *testing.T) {
+			or := newRequest()
+			od, _ := httputil.DumpRequest(or, true)
+
+			payload, err := ridge.ToRequestV1(or)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			b, _ := json.Marshal(payload)
+			rr, err := ridge.NewRequest(json.RawMessage(b))
+			if err != nil {
+				t.Error("failed to decode RequestV1", err)
+			}
+
+			rd, _ := httputil.DumpRequest(rr, true)
+			t.Logf("original request: %s", od)
+			t.Logf("decoded request: %s", rd)
+			if d := cmp.Diff(od, rd); d != "" {
+				t.Error("request is not match", d)
+			}
+		})
 	}
 }

@@ -17,6 +17,7 @@ var PayloadVersion string
 // RequestV1 represents an HTTP request received by an API Gateway proxy integrations. (v1.0)
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html
 type RequestV1 struct {
+	Version                         string              `json:"version"`
 	Body                            string              `json:"body"`
 	Headers                         map[string]string   `json:"headers"`
 	MultiValueHeaders               http.Header         `json:"multiValueHeaders"`
@@ -61,7 +62,7 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 		}
 		return rv1.httpRequest()
 	default:
-		return nil, fmt.Errorf("Payload Version %s is not supported", r.Version)
+		return nil, fmt.Errorf("payload Version %s is not supported", r.Version)
 	}
 }
 
@@ -186,6 +187,9 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 	}
 	host := header.Get("Host")
 	header.Del("Host")
+	if len(r.Cookies) > 0 {
+		header.Add("Cookie", strings.Join(r.Cookies, "; "))
+	}
 	uri := r.RawPath
 	if r.RawQueryString != "" {
 		uri = uri + "?" + r.RawQueryString
@@ -205,9 +209,12 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 		contentLength = int64(len(r.Body))
 		b = strings.NewReader(r.Body)
 	}
+	pmajor, pminor := parseHTTPProtocol(r.RequestContext.HTTP.Protocol)
 	req := http.Request{
 		Method:        r.RequestContext.HTTP.Method,
 		Proto:         r.RequestContext.HTTP.Protocol,
+		ProtoMajor:    pmajor,
+		ProtoMinor:    pminor,
 		Header:        header,
 		ContentLength: contentLength,
 		Body:          io.NopCloser(b),
@@ -217,4 +224,85 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 		URL:           u,
 	}
 	return &req, nil
+}
+
+func parseHTTPProtocol(s string) (int, int) {
+	switch s {
+	case "HTTP/1.0":
+		return 1, 0
+	case "HTTP/1.1":
+		return 1, 1
+	}
+	if strings.HasPrefix(s, "HTTP/2") {
+		return 2, 0
+	}
+	return 0, 0
+}
+
+// ToRequestV1 converts *http.Request to RequestV1.
+func ToRequestV1(r *http.Request) (RequestV1, error) {
+	rv1 := RequestV1{
+		Version:                         "1.0",
+		Headers:                         make(map[string]string),
+		PathParameters:                  make(map[string]string),
+		QueryStringParameters:           make(map[string]string),
+		MultiValueQueryStringParameters: make(map[string][]string),
+	}
+	rv1.HTTPMethod = r.Method
+	rv1.Path = r.URL.Path
+	rv1.Headers = make(map[string]string)
+	rv1.Headers["Host"] = r.Host
+	for key := range r.Header {
+		rv1.Headers[key] = r.Header.Get(key)
+	}
+	rv1.MultiValueHeaders = r.Header
+	rv1.MultiValueHeaders["Host"] = []string{r.Host}
+	for key, value := range r.URL.Query() {
+		rv1.QueryStringParameters[key] = value[0]
+		rv1.MultiValueQueryStringParameters[key] = value
+	}
+	rv1.RequestContext.HTTPMethod = r.Method
+	if r.Body != nil {
+		b, _ := io.ReadAll(r.Body)
+		if len(b) > 0 {
+			rv1.Body = base64.StdEncoding.EncodeToString(b)
+			rv1.IsBase64Encoded = true
+		}
+	}
+	return rv1, nil
+}
+
+// ToRequestV2 converts *http.Request to RequestV2.
+func ToRequestV2(r *http.Request) (RequestV2, error) {
+	rv2 := RequestV2{
+		Version:               "2.0",
+		RawPath:               r.URL.Path,
+		RawQueryString:        r.URL.RawQuery,
+		Headers:               make(map[string]string),
+		QueryStringParameters: make(map[string]string),
+		StageVariables:        make(map[string]string),
+	}
+	rv2.RequestContext.HTTP.Method = r.Method
+	rv2.RequestContext.HTTP.Path = r.URL.Path
+	rv2.RequestContext.HTTP.Protocol = r.Proto
+	rv2.Headers["Host"] = r.Host
+	for key, value := range r.Header {
+		if key == "Cookie" {
+			continue
+		}
+		rv2.Headers[key] = strings.Join(value, ",")
+	}
+	rv2.Cookies = append(rv2.Cookies, r.Header.Values("Cookie")...)
+
+	for key, value := range r.URL.Query() {
+		rv2.QueryStringParameters[key] = strings.Join(value, ",")
+	}
+	if r.Body != nil {
+		b, _ := io.ReadAll(r.Body)
+		if len(b) > 0 {
+			rv2.Body = base64.StdEncoding.EncodeToString(b)
+			rv2.IsBase64Encoded = true
+		}
+	}
+	return rv2, nil
 }
