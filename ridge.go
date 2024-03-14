@@ -166,7 +166,7 @@ func (r *Reige) RunWithContext(ctx context.Context) {
 			r.Mux.ServeHTTP(w, req)
 			return w.Response(), nil
 		}
-		lambda.StartWithContext(ctx, handler)
+		lambda.StartWithOptions(handler, lambda.WithContext(ctx))
 	} else {
 		m := http.NewServeMux()
 		switch {
