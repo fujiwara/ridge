@@ -139,9 +139,9 @@ type Ridge struct {
 	RequestBuilder func(json.RawMessage) (*http.Request, error)
 }
 
-// New creates a new Reige.
-func New(address, prefix string, mux http.Handler) *Reige {
-	return &Reige{
+// New creates a new Ridge.
+func New(address, prefix string, mux http.Handler) *Ridge {
+	return &Ridge{
 		Address:        address,
 		Prefix:         prefix,
 		Mux:            mux,
@@ -150,12 +150,12 @@ func New(address, prefix string, mux http.Handler) *Reige {
 }
 
 // Run runs http handler on AWS Lambda runtime or net/http's server.
-func (r *Reige) Run() {
+func (r *Ridge) Run() {
 	r.RunWithContext(context.Background())
 }
 
 // RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
-func (r *Reige) RunWithContext(ctx context.Context) {
+func (r *Ridge) RunWithContext(ctx context.Context) {
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// go1.x or custom runtime(provided, provided.al2)
 		handler := func(event json.RawMessage) (interface{}, error) {
