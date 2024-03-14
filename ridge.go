@@ -132,7 +132,7 @@ func RunWithContext(ctx context.Context, address, prefix string, mux http.Handle
 }
 
 // Ridge is a struct to run http handler on AWS Lambda runtime or net/http's server.
-type Reige struct {
+type Ridge struct {
 	Address        string
 	Prefix         string
 	Mux            http.Handler
