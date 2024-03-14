@@ -117,3 +117,25 @@ func TestV2RoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestMinimalValidRequestV2(t *testing.T) {
+	payload := json.RawMessage(`{
+  "version": "2.0",
+  "rawPath": "/path/to/example",
+  "requestContext": {
+    "http": {
+      "method": "GET"
+    }
+  }
+}`)
+	r, err := ridge.NewRequest(payload)
+	if err != nil {
+		t.Error("failed to decode minimal valid RequestV2", err)
+	}
+	if r.Method != "GET" {
+		t.Error("unexpected method", r.Method)
+	}
+	if r.URL.Path != "/path/to/example" {
+		t.Error("unexpected path", r.URL.Path)
+	}
+}
