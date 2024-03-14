@@ -133,17 +133,19 @@ func RunWithContext(ctx context.Context, address, prefix string, mux http.Handle
 
 // Ridge is a struct to run http handler on AWS Lambda runtime or net/http's server.
 type Reige struct {
-	Address string
-	Prefix  string
-	Mux     http.Handler
+	Address        string
+	Prefix         string
+	Mux            http.Handler
+	RequestBuilder func(json.RawMessage) (*http.Request, error)
 }
 
 // New creates a new Reige.
 func New(address, prefix string, mux http.Handler) *Reige {
 	return &Reige{
-		Address: address,
-		Prefix:  prefix,
-		Mux:     mux,
+		Address:        address,
+		Prefix:         prefix,
+		Mux:            mux,
+		RequestBuilder: NewRequest,
 	}
 }
 
@@ -157,7 +159,7 @@ func (r *Reige) RunWithContext(ctx context.Context) {
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// go1.x or custom runtime(provided, provided.al2)
 		handler := func(event json.RawMessage) (interface{}, error) {
-			req, err := NewRequest(event)
+			req, err := r.RequestBuilder(event)
 			if err != nil {
 				log.Println(err)
 				return nil, err
