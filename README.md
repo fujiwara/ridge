@@ -79,6 +79,19 @@ result, _ := svc.Invoke(input)
 
 `ridge.ToRequestV2(*http.Request)` converts a net/http.Request to an API Gateway V2 event payload.
 
+### Custom request builder
+
+You can use a custom request builder to convert the AWS Lambda invoke payload to net/http.Request.
+
+```go
+r := ridge.New(":8080", "/", mux)
+r.RequestBuilder = func(payload json.RawMessage) (*http.Request, error) {
+    // your custom request builder
+}
+r.Run()
+```
+
+default request builder is `ridge.NewRequest`.
 
 ## LICENSE
 
