@@ -125,7 +125,7 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 		RequestURI:    uri,
 		URL:           u,
 	}
-	return &req, nil
+	return validateRequest(&req)
 }
 
 // RequestContextV1 represents request contest object (v1.0).
@@ -180,6 +180,19 @@ type RequestContextV2 struct {
 	TimeEpoch int64  `json:"timeEpoch"`
 }
 
+func validateRequest(r *http.Request) (*http.Request, error) {
+	if r.Method == "" {
+		return nil, fmt.Errorf("http method is empty")
+	}
+	if r.URL == nil {
+		return nil, fmt.Errorf("url is nil")
+	}
+	if r.URL.Path == "" {
+		return nil, fmt.Errorf("url path is empty")
+	}
+	return r, nil
+}
+
 func (r RequestV2) httpRequest() (*http.Request, error) {
 	header := make(http.Header)
 	for key, value := range r.Headers {
@@ -223,7 +236,7 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 		RequestURI:    uri,
 		URL:           u,
 	}
-	return &req, nil
+	return validateRequest(&req)
 }
 
 func parseHTTPProtocol(s string) (int, int) {
