@@ -127,33 +127,62 @@ func Run(address, prefix string, mux http.Handler) {
 
 // RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
 func RunWithContext(ctx context.Context, address, prefix string, mux http.Handler) {
+	r := New(address, prefix, mux)
+	r.RunWithContext(ctx)
+}
+
+// Ridge is a struct to run http handler on AWS Lambda runtime or net/http's server.
+type Ridge struct {
+	Address        string
+	Prefix         string
+	Mux            http.Handler
+	RequestBuilder func(json.RawMessage) (*http.Request, error)
+}
+
+// New creates a new Ridge.
+func New(address, prefix string, mux http.Handler) *Ridge {
+	return &Ridge{
+		Address:        address,
+		Prefix:         prefix,
+		Mux:            mux,
+		RequestBuilder: NewRequest,
+	}
+}
+
+// Run runs http handler on AWS Lambda runtime or net/http's server.
+func (r *Ridge) Run() {
+	r.RunWithContext(context.Background())
+}
+
+// RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
+func (r *Ridge) RunWithContext(ctx context.Context) {
 	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
 		// go1.x or custom runtime(provided, provided.al2)
 		handler := func(event json.RawMessage) (interface{}, error) {
-			r, err := NewRequest(event)
+			req, err := r.RequestBuilder(event)
 			if err != nil {
 				log.Println(err)
 				return nil, err
 			}
 			w := NewResponseWriter()
-			mux.ServeHTTP(w, r)
+			r.Mux.ServeHTTP(w, req)
 			return w.Response(), nil
 		}
-		lambda.StartWithContext(ctx, handler)
+		lambda.StartWithOptions(handler, lambda.WithContext(ctx))
 	} else {
 		m := http.NewServeMux()
 		switch {
-		case prefix == "/", prefix == "":
-			m.Handle("/", mux)
-		case !strings.HasSuffix(prefix, "/"):
-			m.Handle(prefix+"/", http.StripPrefix(prefix, mux))
+		case r.Prefix == "/", r.Prefix == "":
+			m.Handle("/", r.Mux)
+		case !strings.HasSuffix(r.Prefix, "/"):
+			m.Handle(r.Prefix+"/", http.StripPrefix(r.Prefix, r.Mux))
 		default:
-			m.Handle(prefix, http.StripPrefix(strings.TrimSuffix(prefix, "/"), mux))
+			m.Handle(r.Prefix, http.StripPrefix(strings.TrimSuffix(r.Prefix, "/"), r.Mux))
 		}
-		log.Println("starting up with local httpd", address)
-		listener, err := net.Listen("tcp", address)
+		log.Println("starting up with local httpd", r.Address)
+		listener, err := net.Listen("tcp", r.Address)
 		if err != nil {
-			log.Fatalf("couldn't listen to %s: %s", address, err.Error())
+			log.Fatalf("couldn't listen to %s: %s", r.Address, err.Error())
 		}
 		if ProxyProtocol {
 			log.Println("enables to PROXY protocol")
@@ -165,7 +194,7 @@ func RunWithContext(ctx context.Context, address, prefix string, mux http.Handle
 		go func() {
 			defer wg.Done()
 			<-ctx.Done()
-			log.Println("shutting down local httpd", address)
+			log.Println("shutting down local httpd", r.Address)
 			srv.Shutdown(ctx)
 		}()
 		if err := srv.Serve(listener); err != nil {
