@@ -55,7 +55,7 @@ func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
 		dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(r.Body))
 		return io.Copy(w, dec)
 	}
-	n, err := w.Write([]byte(r.Body))
+	n, err := io.WriteString(w, r.Body)
 	return int64(n), err
 }
 
