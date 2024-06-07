@@ -41,6 +41,9 @@ func TestResponse(t *testing.T) {
 			if res2.Headers["Content-Type"] != "text/plain" {
 				t.Errorf("unexpected Content-Type: %s", res2.Headers["Content-Type"])
 			}
+			if len(res2.MultiValueHeaders["Content-Type"]) != 1 || res2.MultiValueHeaders["Content-Type"][0] != "text/plain" {
+				t.Errorf("unexpected Content-Type: %#v", res2.MultiValueHeaders["Content-Type"])
+			}
 			if res2.Body != "Hello XXX" {
 				t.Errorf("unexpected body: %s", res2.Body)
 			}
