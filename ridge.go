@@ -39,9 +39,6 @@ type Response struct {
 
 // WriteTo writes response to http.ResponseWriter.
 func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
-	for k, v := range r.Headers {
-		w.Header().Set(k, v)
-	}
 	for k, vs := range r.MultiValueHeaders {
 		for _, v := range vs {
 			w.Header().Add(k, v)
