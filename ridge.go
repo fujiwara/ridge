@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
 	"mime"
 	"net"
@@ -36,6 +37,28 @@ type Response struct {
 	IsBase64Encoded   bool              `json:"isBase64Encoded"`
 }
 
+// WriteTo writes response to http.ResponseWriter.
+func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
+	for k, v := range r.Headers {
+		w.Header().Set(k, v)
+	}
+	for k, vs := range r.MultiValueHeaders {
+		for _, v := range vs {
+			w.Header().Add(k, v)
+		}
+	}
+	for _, c := range r.Cookies {
+		w.Header().Add("Set-Cookie", c)
+	}
+	w.WriteHeader(r.StatusCode)
+	if r.IsBase64Encoded {
+		dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(r.Body))
+		return io.Copy(w, dec)
+	}
+	n, err := io.WriteString(w, r.Body)
+	return int64(n), err
+}
+
 // NewResponseWriter creates ResponseWriter
 func NewResponseWriter() *ResponseWriter {
 	w := &ResponseWriter{
@@ -46,7 +69,7 @@ func NewResponseWriter() *ResponseWriter {
 	return w
 }
 
-// ResponeWriter represents a response writer implements http.ResponseWriter.
+// ResponseWriter represents a response writer implements http.ResponseWriter.
 type ResponseWriter struct {
 	bytes.Buffer
 	header     http.Header
