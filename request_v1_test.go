@@ -51,6 +51,9 @@ func TestGetRequest(t *testing.T) {
 	if v := r.Header.Get("Via"); v != "1.1 a3fed41c60e2fab219a274640e58ebe5.cloudfront.net (CloudFront)" {
 		t.Errorf("Header[Via]: %s is not expected", v)
 	}
+	if v := r.Header.Get("X-Amzn-RequestId"); v != "817175b9-890f-11e6-960e-4f321627a748" {
+		t.Errorf("Header[X-Amzn-RequestId]: %s is not expected", v)
+	}
 	if r.RemoteAddr != "203.0.113.1" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
@@ -85,6 +88,9 @@ func TestPostRequest(t *testing.T) {
 	}
 	if v := r.Header.Get("Via"); v != "1.1 736a82fbf158fe646f468bd5664ef95c.cloudfront.net (CloudFront)" {
 		t.Errorf("Header[Via]: %s is not expected", v)
+	}
+	if v := r.Header.Get("X-Amzn-RequestId"); v != "8eed9b4f-890f-11e6-9f3c-1584342606cd" {
+		t.Errorf("Header[X-Amzn-RequestId]: %s is not expected", v)
 	}
 	if r.RemoteAddr != "203.0.113.1" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
@@ -123,6 +129,9 @@ func TestBase64EncodedRequest(t *testing.T) {
 	}
 	if v := r.Header.Get("Via"); v != "1.1 736a82fbf158fe646f468bd5664ef95c.cloudfront.net (CloudFront)" {
 		t.Errorf("Header[Via]: %s is not expected", v)
+	}
+	if v := r.Header.Get("X-Amzn-RequestId"); v != "8eed9b4f-890f-11e6-9f3c-1584342606cd" {
+		t.Errorf("Header[X-Amzn-RequestId]: %s is not expected", v)
 	}
 	if r.RemoteAddr != "203.0.113.1" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)

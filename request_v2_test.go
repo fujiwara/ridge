@@ -45,6 +45,9 @@ func TestGetRequestV2(t *testing.T) {
 	if v := r.Header.Get("x-amzn-trace-id"); v != "Root=1-5e723e47-2ffda90008b1b60064fac400" {
 		t.Errorf("Header[x-amzn-trace-id]: %s is not expected", v)
 	}
+	if v := r.Header.Get("x-amzn-requestid"); v != "Jl6rIhtwNjMEJLQ=" {
+		t.Errorf("Header[x-amzn-requestid]: %s is not expected", v)
+	}
 	if r.RemoteAddr != "203.0.113.1" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
@@ -79,6 +82,9 @@ func TestPostRequestV2(t *testing.T) {
 	}
 	if v := r.Header.Get("x-amzn-trace-id"); v != "Root=1-5e723db7-6077c85e0d781094f0c83e24" {
 		t.Errorf("Header[x-amzn-trace-id]: %s is not expected", v)
+	}
+	if v := r.Header.Get("x-amzn-requestid"); v != "Jl6UpgU9tjMEPLA=" {
+		t.Errorf("Header[x-amzn-requestid]: %s is not expected", v)
 	}
 	if r.ContentLength != 13 {
 		t.Errorf("Content-Length: %d is not expected", r.ContentLength)
