@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+const RequestIDHeaderName = "X-Amzn-RequestId"
+
 // PayloadVersion when this variable set, Ridge disables auto detection payload version.
 var PayloadVersion string
 
@@ -81,6 +83,9 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 	}
 	host := header.Get("Host")
 	header.Del("Host")
+	if id := r.RequestContext.RequestID; id != "" {
+		header.Set(RequestIDHeaderName, id)
+	}
 	v := make(url.Values)
 	if len(r.MultiValueQueryStringParameters) > 0 {
 		for key, values := range r.MultiValueQueryStringParameters {
@@ -200,6 +205,10 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 	}
 	host := header.Get("Host")
 	header.Del("Host")
+	if id := r.RequestContext.RequestID; id != "" {
+		header.Set(RequestIDHeaderName, id)
+	}
+
 	if len(r.Cookies) > 0 {
 		header.Add("Cookie", strings.Join(r.Cookies, "; "))
 	}
