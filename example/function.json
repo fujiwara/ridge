@@ -1,9 +1,8 @@
 {
     "Description": "an example for ridge",
     "FunctionName": "ridge-hello",
-    "Handler": "handler",
     "MemorySize": 128,
     "Role": "arn:aws:iam::{{ must_env `AWS_ACCOUNT_ID` }}:role/ridge",
-    "Runtime": "go1.x",
+    "Runtime": "provided.al2023",
     "Timeout": 5
 }
