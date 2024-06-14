@@ -22,7 +22,7 @@ func main() {
 	app.ProxyProtocol = true
 	app.TermHandler = func() {
 		log.Println("TERM signal received")
-		time.Sleep(time.Second)
+		time.Sleep(100 * time.Millisecond)
 		log.Println("Goodbye")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
