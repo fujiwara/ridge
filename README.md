@@ -37,13 +37,13 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 This code works on AWS Lambda and also as a standalone HTTP server.
 
-If you run this code on AWS Lambda, you can access the function via API Gateway,  ALB,  or Functinon URLs. ridge converts the request payload to Go's net/http.Request, and the response that your app returns converts to the payload of Lambda.
+If you run this code on AWS Lambda, you can access the function via API Gateway,  ALB,  or Function URLs. ridge converts the request payload to Go's net/http.Request, and the response that your app returns converts to the payload of Lambda.
 
 You can access the function via Go's net/http server if you run this code as a standalone HTTP server.
 
 So you can develop and test your Lambda function locally without deploying to AWS.
 
-Also, you can switch the runtime environment between AWS Lambda and a standalone HTTP server on Amazon ECS, Amazon EC2, or AWS AppRunner **without any code and built binarie changes**.
+Also, you can switch the runtime environment between AWS Lambda and a standalone HTTP server on Amazon ECS, Amazon EC2, or AWS AppRunner **without any code and built binary changes**.
 
 ### ridge.Run(address, prefix, handler)
 
@@ -88,10 +88,28 @@ r := ridge.New(":8080", "/", mux)
 r.RequestBuilder = func(payload json.RawMessage) (*http.Request, error) {
     // your custom request builder
 }
-r.Run()
+r.RunWithContext(ctx)
 ```
 
 default request builder is `ridge.NewRequest`.
+
+### SIGTERM handler
+
+ridge catches SIGTERM and stops the server gracefully by default.
+
+You can add a custom handler to the SIGTERM signal.
+
+```go
+r := ridge.New(":8080", "/", mux)
+r.SIGTERMHandler = func() {
+	// your custom handler
+}
+r.RunWithContext(ctx)
+```
+
+ridge calls the handler when it receives a SIGTERM signal. After the handler returns, ridge stops the server.
+
+When you run ridge on AWS Lambda, ridge uses [`lambda.WithEnableSIGTERM`](https://pkg.go.dev/github.com/aws/aws-lambda-go/lambda#WithEnableSIGTERM) to call the handler. In this case, the handler must return in 500ms.
 
 ## LICENSE
 
