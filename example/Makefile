@@ -4,7 +4,7 @@ bootstrap: *.go
 	GOOS=linux GOARCH=amd64 go build -o bootstrap main.go
 
 deploy: bootstrap function.json
-	lambroll deploy
+	lambroll deploy --function-url function_url.json
 
 clean:
 	rm -f bootstrap
