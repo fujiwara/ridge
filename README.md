@@ -109,7 +109,13 @@ r.RunWithContext(ctx)
 
 ridge calls the handler when it receives a SIGTERM signal. After the handler returns, ridge stops the server.
 
-When you run ridge on AWS Lambda, ridge uses [`lambda.WithEnableSIGTERM`](https://pkg.go.dev/github.com/aws/aws-lambda-go/lambda#WithEnableSIGTERM) to call the handler. In this case, the handler must return in 500ms.
+**Note**
+
+When you run ridge on AWS Lambda, ridge uses [`lambda.WithEnableSIGTERM`](https://pkg.go.dev/github.com/aws/aws-lambda-go/lambda#WithEnableSIGTERM) to call the handler.
+
+You must add [Lambda external extensions](https://docs.aws.amazon.com/lambda/latest/dg/lambda-extensions.html) at least one to the handler. If without extensions, the handler will not be called because the Lambda runtime does not send the SIGTERM signal.
+
+The handler must return in 500ms.
 
 ## LICENSE
 

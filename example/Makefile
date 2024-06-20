@@ -11,3 +11,9 @@ clean:
 
 logs:
 	lambroll logs --follow
+
+diff:
+	lambroll diff
+
+invoke:
+	lambroll invoke --payload '{}'

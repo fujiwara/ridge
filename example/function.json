@@ -1,6 +1,9 @@
 {
     "Description": "an example for ridge",
     "FunctionName": "ridge-hello",
+    "Layers": [
+        "arn:aws:lambda:ap-northeast-1:580247275435:layer:LambdaInsightsExtension:79"
+    ],
     "MemorySize": 128,
     "Role": "arn:aws:iam::{{ must_env `AWS_ACCOUNT_ID` }}:role/ridge",
     "Runtime": "provided.al2023",
