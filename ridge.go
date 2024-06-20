@@ -11,8 +11,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	proxyproto "github.com/pires/go-proxyproto"
@@ -157,6 +159,8 @@ type Ridge struct {
 	Prefix         string
 	Mux            http.Handler
 	RequestBuilder func(json.RawMessage) (*http.Request, error)
+	TermHandler    func()
+	ProxyProtocol  bool
 }
 
 // New creates a new Ridge.
@@ -166,6 +170,7 @@ func New(address, prefix string, mux http.Handler) *Ridge {
 		Prefix:         prefix,
 		Mux:            mux,
 		RequestBuilder: NewRequest,
+		ProxyProtocol:  ProxyProtocol,
 	}
 }
 
@@ -188,7 +193,11 @@ func (r *Ridge) RunWithContext(ctx context.Context) {
 			r.Mux.ServeHTTP(w, req)
 			return w.Response(), nil
 		}
-		lambda.StartWithOptions(handler, lambda.WithContext(ctx))
+		opts := []lambda.Option{lambda.WithContext(ctx)}
+		if r.TermHandler != nil {
+			opts = append(opts, lambda.WithEnableSIGTERM(r.TermHandler))
+		}
+		lambda.StartWithOptions(handler, opts...)
 	} else {
 		m := http.NewServeMux()
 		switch {
@@ -204,13 +213,25 @@ func (r *Ridge) RunWithContext(ctx context.Context) {
 		if err != nil {
 			log.Fatalf("couldn't listen to %s: %s", r.Address, err.Error())
 		}
-		if ProxyProtocol {
+		if r.ProxyProtocol {
 			log.Println("enables to PROXY protocol")
 			listener = &proxyproto.Listener{Listener: listener}
 		}
 		srv := http.Server{Handler: m}
 		var wg sync.WaitGroup
-		wg.Add(2)
+		wg.Add(3)
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGTERM)
+		go func() {
+			select {
+			case <-ch:
+			case <-ctx.Done():
+			}
+			if r.TermHandler != nil {
+				r.TermHandler()
+			}
+			wg.Done()
+		}()
 		go func() {
 			defer wg.Done()
 			<-ctx.Done()
