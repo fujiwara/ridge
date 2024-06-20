@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 type Message struct {
@@ -34,17 +33,17 @@ func DecodeLogStream(event json.RawMessage) (*LogStream, error) {
 	msg := Message{}
 	err := json.Unmarshal(event, &msg)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not decode event")
+		return nil, fmt.Errorf("could not decode event: %w", err)
 	}
 	gz, err := gzip.NewReader(bytes.NewReader(msg.Awslogs.Data))
 	if err != nil {
-		return nil, errors.Wrap(err, "cloud not create gzip reader")
+		return nil, fmt.Errorf("cloud not create gzip reader: %w", err)
 	}
 	dec := json.NewDecoder(gz)
 	ls := LogStream{}
 	err = dec.Decode(&ls)
 	if err != nil {
-		return nil, errors.Wrap(err, "cloud not decode log stream")
+		return nil, fmt.Errorf("cloud not decode log stream: %w", err)
 	}
 	return &ls, nil
 }
