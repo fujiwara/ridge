@@ -181,69 +181,84 @@ func (r *Ridge) Run() {
 
 // RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
 func (r *Ridge) RunWithContext(ctx context.Context) {
-	if strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "" {
-		// go1.x or custom runtime(provided, provided.al2)
-		handler := func(event json.RawMessage) (interface{}, error) {
-			req, err := r.RequestBuilder(event)
-			if err != nil {
-				log.Println(err)
-				return nil, err
-			}
-			w := NewResponseWriter()
-			r.Mux.ServeHTTP(w, req)
-			return w.Response(), nil
-		}
-		opts := []lambda.Option{lambda.WithContext(ctx)}
-		if r.TermHandler != nil {
-			opts = append(opts, lambda.WithEnableSIGTERM(r.TermHandler))
-		}
-		lambda.StartWithOptions(handler, opts...)
+	if IsOnLambdaRuntime() {
+		r.runOnLambdaRuntime(ctx)
 	} else {
-		m := http.NewServeMux()
-		switch {
-		case r.Prefix == "/", r.Prefix == "":
-			m.Handle("/", r.Mux)
-		case !strings.HasSuffix(r.Prefix, "/"):
-			m.Handle(r.Prefix+"/", http.StripPrefix(r.Prefix, r.Mux))
-		default:
-			m.Handle(r.Prefix, http.StripPrefix(strings.TrimSuffix(r.Prefix, "/"), r.Mux))
-		}
-		log.Println("starting up with local httpd", r.Address)
-		listener, err := net.Listen("tcp", r.Address)
-		if err != nil {
-			log.Fatalf("couldn't listen to %s: %s", r.Address, err.Error())
-		}
-		if r.ProxyProtocol {
-			log.Println("enables to PROXY protocol")
-			listener = &proxyproto.Listener{Listener: listener}
-		}
-		srv := http.Server{Handler: m}
-		var wg sync.WaitGroup
-		wg.Add(3)
-		ch := make(chan os.Signal, 1)
-		signal.Notify(ch, syscall.SIGTERM)
-		go func() {
-			select {
-			case <-ch:
-			case <-ctx.Done():
-			}
-			if r.TermHandler != nil {
-				r.TermHandler()
-			}
-			wg.Done()
-		}()
-		go func() {
-			defer wg.Done()
-			<-ctx.Done()
-			log.Println("shutting down local httpd", r.Address)
-			srv.Shutdown(ctx)
-		}()
-		if err := srv.Serve(listener); err != nil {
-			if err != http.ErrServerClosed {
-				log.Fatal(err)
-			}
-			wg.Done()
-		}
-		wg.Wait()
+		r.runOnNetHTTPServer(ctx)
 	}
+}
+
+// IsOnLambdaRuntime returns true if running on AWS Lambda runtime (excludes extensions).
+// - AWS_EXECUTION_ENV is set on AWS Lambda runtime (go1.x)
+// - AWS_LAMBDA_RUNTIME_API is set on custom runtime (provided.*)
+// - _HANDLER is not set on AWS Lambda extension
+func IsOnLambdaRuntime() bool {
+	return (strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "") && os.Getenv("_HANDLER") != ""
+}
+
+func (r *Ridge) runOnLambdaRuntime(ctx context.Context) {
+	handler := func(event json.RawMessage) (interface{}, error) {
+		req, err := r.RequestBuilder(event)
+		if err != nil {
+			log.Println(err)
+			return nil, err
+		}
+		w := NewResponseWriter()
+		r.Mux.ServeHTTP(w, req)
+		return w.Response(), nil
+	}
+	opts := []lambda.Option{lambda.WithContext(ctx)}
+	if r.TermHandler != nil {
+		opts = append(opts, lambda.WithEnableSIGTERM(r.TermHandler))
+	}
+	lambda.StartWithOptions(handler, opts...)
+}
+
+func (r *Ridge) runOnNetHTTPServer(ctx context.Context) {
+	m := http.NewServeMux()
+	switch {
+	case r.Prefix == "/", r.Prefix == "":
+		m.Handle("/", r.Mux)
+	case !strings.HasSuffix(r.Prefix, "/"):
+		m.Handle(r.Prefix+"/", http.StripPrefix(r.Prefix, r.Mux))
+	default:
+		m.Handle(r.Prefix, http.StripPrefix(strings.TrimSuffix(r.Prefix, "/"), r.Mux))
+	}
+	log.Println("starting up with local httpd", r.Address)
+	listener, err := net.Listen("tcp", r.Address)
+	if err != nil {
+		log.Fatalf("couldn't listen to %s: %s", r.Address, err.Error())
+	}
+	if r.ProxyProtocol {
+		log.Println("enables to PROXY protocol")
+		listener = &proxyproto.Listener{Listener: listener}
+	}
+	srv := http.Server{Handler: m}
+	var wg sync.WaitGroup
+	wg.Add(3)
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGTERM)
+	go func() {
+		select {
+		case <-ch:
+		case <-ctx.Done():
+		}
+		if r.TermHandler != nil {
+			r.TermHandler()
+		}
+		wg.Done()
+	}()
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		log.Println("shutting down local httpd", r.Address)
+		srv.Shutdown(ctx)
+	}()
+	if err := srv.Serve(listener); err != nil {
+		if err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+		wg.Done()
+	}
+	wg.Wait()
 }
