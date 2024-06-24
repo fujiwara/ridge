@@ -79,6 +79,14 @@ result, _ := svc.Invoke(input)
 
 `ridge.ToRequestV2(*http.Request)` converts a net/http.Request to an API Gateway V2 event payload.
 
+### ridge.IsOnLambdaRuntime()
+
+IsOnLambdaRuntime returns true if running on AWS Lambda runtime (excludes on Lambda extensions).
+
+- `AWS_EXECUTION_ENV` is set on AWS Lambda runtime (go1.x).
+- `AWS_LAMBDA_RUNTIME_API` is set on custom runtime (provided.*).
+- `_HANDLER` is not set on AWS Lambda extension.
+
 ### Custom request builder
 
 You can use a custom request builder to convert the AWS Lambda invoke payload to net/http.Request.
