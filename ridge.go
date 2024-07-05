@@ -181,22 +181,33 @@ func (r *Ridge) Run() {
 
 // RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
 func (r *Ridge) RunWithContext(ctx context.Context) {
-	if IsOnLambdaRuntime() {
-		r.runOnLambdaRuntime(ctx)
+	if AsLambdaHandler() {
+		r.runAsLambdaHandler(ctx)
 	} else {
+		// If it is not running on the AWS Lambda runtime or running as a Lambda extension,
+		// runs a net/http server.
 		r.runOnNetHTTPServer(ctx)
 	}
 }
 
-// IsOnLambdaRuntime returns true if running on AWS Lambda runtime (excludes extensions).
+// OnLambdaRuntime returns true if running on AWS Lambda runtime
 // - AWS_EXECUTION_ENV is set on AWS Lambda runtime (go1.x)
 // - AWS_LAMBDA_RUNTIME_API is set on custom runtime (provided.*)
-// - _HANDLER is not set on AWS Lambda extension
-func IsOnLambdaRuntime() bool {
-	return (strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "") && os.Getenv("_HANDLER") != ""
+func OnLambdaRuntime() bool {
+	return (strings.HasPrefix(os.Getenv("AWS_EXECUTION_ENV"), "AWS_Lambda") || os.Getenv("AWS_LAMBDA_RUNTIME_API") != "")
 }
 
-func (r *Ridge) runOnLambdaRuntime(ctx context.Context) {
+// AsLambdaExtension returns true if running on AWS Lambda runtime and run as a Lambda extension
+func AsLambdaExtension() bool {
+	return OnLambdaRuntime() && os.Getenv("_HANDLER") == ""
+}
+
+// AsLambdaHandler returns true if running on AWS Lambda runtime and run as a Lambda handler
+func AsLambdaHandler() bool {
+	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
+}
+
+func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 	handler := func(event json.RawMessage) (interface{}, error) {
 		req, err := r.RequestBuilder(event)
 		if err != nil {
