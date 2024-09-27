@@ -17,6 +17,7 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/lambdacontext"
 	proxyproto "github.com/pires/go-proxyproto"
 )
 
@@ -208,11 +209,15 @@ func AsLambdaHandler() bool {
 }
 
 func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
-	handler := func(event json.RawMessage) (interface{}, error) {
+	handler := func(ctx context.Context, event json.RawMessage) (interface{}, error) {
 		req, err := r.RequestBuilder(event)
 		if err != nil {
 			log.Println(err)
 			return nil, err
+		}
+		if lc, ok := lambdacontext.FromContext(ctx); ok {
+			req.Header.Set("Lambda-Runtime-Aws-Request-Id", lc.AwsRequestID)
+			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
 		w := NewResponseWriter()
 		r.Mux.ServeHTTP(w, req)
