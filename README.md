@@ -87,6 +87,15 @@ IsOnLambdaRuntime returns true if running on AWS Lambda runtime (excludes on Lam
 - `AWS_LAMBDA_RUNTIME_API` is set on custom runtime (provided.*).
 - `_HANDLER` is not set on AWS Lambda extension.
 
+#### AWS Lambda request headers
+
+When an application runs on AWS Lambda environments, ridge sets the following headers to the request.
+
+- `Lambda-Runtime-Aws-Request-Id`
+- `Lambda-Runtime-Invoked-Function-Arn`
+
+These headers are from the [Lambda runtime API](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html).
+
 ### Custom request builder
 
 You can use a custom request builder to convert the AWS Lambda invoke payload to net/http.Request.
