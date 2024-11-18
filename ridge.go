@@ -208,6 +208,19 @@ func AsLambdaHandler() bool {
 	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
 }
 
+func (r *Ridge) mountMux() http.Handler {
+	m := http.NewServeMux()
+	switch {
+	case r.Prefix == "/", r.Prefix == "":
+		m.Handle("/", r.Mux)
+	case !strings.HasSuffix(r.Prefix, "/"):
+		m.Handle(r.Prefix+"/", http.StripPrefix(r.Prefix, r.Mux))
+	default:
+		m.Handle(r.Prefix, http.StripPrefix(strings.TrimSuffix(r.Prefix, "/"), r.Mux))
+	}
+	return m
+}
+
 func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 	handler := func(ctx context.Context, event json.RawMessage) (interface{}, error) {
 		req, err := r.RequestBuilder(event)
@@ -220,7 +233,7 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
 		w := NewResponseWriter()
-		r.Mux.ServeHTTP(w, req)
+		r.mountMux().ServeHTTP(w, req.WithContext(ctx))
 		return w.Response(), nil
 	}
 	opts := []lambda.Option{lambda.WithContext(ctx)}
@@ -231,15 +244,6 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 }
 
 func (r *Ridge) runOnNetHTTPServer(ctx context.Context) {
-	m := http.NewServeMux()
-	switch {
-	case r.Prefix == "/", r.Prefix == "":
-		m.Handle("/", r.Mux)
-	case !strings.HasSuffix(r.Prefix, "/"):
-		m.Handle(r.Prefix+"/", http.StripPrefix(r.Prefix, r.Mux))
-	default:
-		m.Handle(r.Prefix, http.StripPrefix(strings.TrimSuffix(r.Prefix, "/"), r.Mux))
-	}
 	log.Println("starting up with local httpd", r.Address)
 	listener, err := net.Listen("tcp", r.Address)
 	if err != nil {
@@ -249,7 +253,7 @@ func (r *Ridge) runOnNetHTTPServer(ctx context.Context) {
 		log.Println("enables to PROXY protocol")
 		listener = &proxyproto.Listener{Listener: listener}
 	}
-	srv := http.Server{Handler: m}
+	srv := http.Server{Handler: r.mountMux()}
 	var wg sync.WaitGroup
 	wg.Add(3)
 	ch := make(chan os.Signal, 1)
