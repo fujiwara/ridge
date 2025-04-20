@@ -16,6 +16,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	proxyproto "github.com/pires/go-proxyproto"
@@ -113,6 +114,88 @@ func (w *ResponseWriter) Response() Response {
 	}
 }
 
+// NewStramingResponseWriter creates StramingResponseWriter
+func NewStramingResponseWriter() *StramingResponseWriter {
+	pipeReader, pipeWriter := io.Pipe()
+	w := &StramingResponseWriter{
+		buf:        bytes.Buffer{},
+		pipeWriter: pipeWriter,
+		resp: events.LambdaFunctionURLStreamingResponse{
+			StatusCode: http.StatusOK,
+			Body:       pipeReader,
+		},
+		header:          make(http.Header),
+		isWrettenHeader: false,
+		ready:           make(chan struct{}),
+	}
+	return w
+}
+
+// StramingResponseWriter is a response writer for streaming response.
+type StramingResponseWriter struct {
+	buf             bytes.Buffer
+	pipeWriter      *io.PipeWriter
+	header          http.Header
+	isWrettenHeader bool
+	resp            events.LambdaFunctionURLStreamingResponse
+	ready           chan struct{}
+}
+
+func (w *StramingResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *StramingResponseWriter) WriteHeader(code int) {
+	if w.isWrettenHeader {
+		return
+	}
+	w.isWrettenHeader = true
+	w.resp.StatusCode = code
+	w.resp.Headers = make(map[string]string, len(w.header))
+	for key, values := range w.header {
+		if key == "Set-Cookie" {
+			w.resp.Cookies = values
+		} else {
+			w.resp.Headers[key] = strings.Join(values, ",")
+		}
+	}
+	close(w.ready)
+}
+
+func (w *StramingResponseWriter) Write(b []byte) (int, error) {
+	if !w.isWrettenHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.buf.Write(b)
+}
+
+func (w *StramingResponseWriter) Flush() {
+	if w.buf.Len() == 0 {
+		return
+	}
+	w.pipeWriter.Write(w.buf.Bytes())
+	w.buf.Reset()
+}
+
+func (w *StramingResponseWriter) Close() error {
+	if !w.isWrettenHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	w.Flush()
+	if err := w.pipeWriter.Close(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *StramingResponseWriter) Wait() {
+	<-w.ready
+}
+
+func (w *StramingResponseWriter) Response() events.LambdaFunctionURLStreamingResponse {
+	return w.resp
+}
+
 func isBinary(k, v string) bool {
 	if k == "Content-Type" && !isTextMime(v) {
 		return true
@@ -156,12 +239,13 @@ func RunWithContext(ctx context.Context, address, prefix string, mux http.Handle
 
 // Ridge is a struct to run http handler on AWS Lambda runtime or net/http's server.
 type Ridge struct {
-	Address        string
-	Prefix         string
-	Mux            http.Handler
-	RequestBuilder func(json.RawMessage) (*http.Request, error)
-	TermHandler    func()
-	ProxyProtocol  bool
+	Address          string
+	Prefix           string
+	Mux              http.Handler
+	RequestBuilder   func(json.RawMessage) (*http.Request, error)
+	TermHandler      func()
+	ProxyProtocol    bool
+	StramingResponse bool
 }
 
 // New creates a new Ridge.
@@ -232,8 +316,18 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Aws-Request-Id", lc.AwsRequestID)
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
-		w := NewResponseWriter()
-		r.mountMux().ServeHTTP(w, req.WithContext(ctx))
+		if !r.StramingResponse {
+			w := NewResponseWriter()
+			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
+			return w.Response(), nil
+		}
+		req.Header.Set("Lambda-Runtime-Function-Response-Mode", "streaming")
+		w := NewStramingResponseWriter()
+		go func() {
+			defer w.Close()
+			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
+		}()
+		w.Wait()
 		return w.Response(), nil
 	}
 	opts := []lambda.Option{lambda.WithContext(ctx)}
