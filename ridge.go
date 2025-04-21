@@ -163,13 +163,13 @@ func (w *StramingResponseWriter) WriteHeader(code int) {
 }
 
 func (w *StramingResponseWriter) Write(b []byte) (int, error) {
-	if !w.isWrettenHeader {
-		w.WriteHeader(http.StatusOK)
-	}
 	return w.buf.Write(b)
 }
 
 func (w *StramingResponseWriter) Flush() {
+	if !w.isWrettenHeader {
+		w.WriteHeader(http.StatusOK)
+	}
 	if w.buf.Len() == 0 {
 		return
 	}
@@ -192,8 +192,8 @@ func (w *StramingResponseWriter) Wait() {
 	<-w.ready
 }
 
-func (w *StramingResponseWriter) Response() events.LambdaFunctionURLStreamingResponse {
-	return w.resp
+func (w *StramingResponseWriter) Response() *events.LambdaFunctionURLStreamingResponse {
+	return &w.resp
 }
 
 func isBinary(k, v string) bool {
