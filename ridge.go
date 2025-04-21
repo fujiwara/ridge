@@ -114,42 +114,39 @@ func (w *ResponseWriter) Response() Response {
 	}
 }
 
-// NewStramingResponseWriter creates StramingResponseWriter
-func NewStramingResponseWriter() *StramingResponseWriter {
+// NewStreamingResponseWriter creates StreamingResponseWriter
+func NewStreamingResponseWriter() *StreamingResponseWriter {
 	pipeReader, pipeWriter := io.Pipe()
-	w := &StramingResponseWriter{
-		buf:        bytes.Buffer{},
-		pipeWriter: pipeWriter,
-		resp: events.LambdaFunctionURLStreamingResponse{
-			StatusCode: http.StatusOK,
-			Body:       pipeReader,
-		},
+	w := &StreamingResponseWriter{
+		buf:             bytes.Buffer{},
+		pipeWriter:      pipeWriter,
+		resp:            events.LambdaFunctionURLStreamingResponse{StatusCode: http.StatusOK, Body: pipeReader},
 		header:          make(http.Header),
-		isWrettenHeader: false,
+		isWrittenHeader: false,
 		ready:           make(chan struct{}),
 	}
 	return w
 }
 
-// StramingResponseWriter is a response writer for streaming response.
-type StramingResponseWriter struct {
+// StreamingResponseWriter is a response writer for streaming response.
+type StreamingResponseWriter struct {
 	buf             bytes.Buffer
 	pipeWriter      *io.PipeWriter
 	header          http.Header
-	isWrettenHeader bool
+	isWrittenHeader bool
 	resp            events.LambdaFunctionURLStreamingResponse
 	ready           chan struct{}
 }
 
-func (w *StramingResponseWriter) Header() http.Header {
+func (w *StreamingResponseWriter) Header() http.Header {
 	return w.header
 }
 
-func (w *StramingResponseWriter) WriteHeader(code int) {
-	if w.isWrettenHeader {
+func (w *StreamingResponseWriter) WriteHeader(code int) {
+	if w.isWrittenHeader {
 		return
 	}
-	w.isWrettenHeader = true
+	w.isWrittenHeader = true
 	w.resp.StatusCode = code
 	w.resp.Headers = make(map[string]string, len(w.header))
 	for key, values := range w.header {
@@ -162,12 +159,12 @@ func (w *StramingResponseWriter) WriteHeader(code int) {
 	close(w.ready)
 }
 
-func (w *StramingResponseWriter) Write(b []byte) (int, error) {
+func (w *StreamingResponseWriter) Write(b []byte) (int, error) {
 	return w.buf.Write(b)
 }
 
-func (w *StramingResponseWriter) Flush() {
-	if !w.isWrettenHeader {
+func (w *StreamingResponseWriter) Flush() {
+	if !w.isWrittenHeader {
 		w.WriteHeader(http.StatusOK)
 	}
 	if w.buf.Len() == 0 {
@@ -177,8 +174,8 @@ func (w *StramingResponseWriter) Flush() {
 	w.buf.Reset()
 }
 
-func (w *StramingResponseWriter) Close() error {
-	if !w.isWrettenHeader {
+func (w *StreamingResponseWriter) Close() error {
+	if !w.isWrittenHeader {
 		w.WriteHeader(http.StatusOK)
 	}
 	w.Flush()
@@ -188,11 +185,11 @@ func (w *StramingResponseWriter) Close() error {
 	return nil
 }
 
-func (w *StramingResponseWriter) Wait() {
+func (w *StreamingResponseWriter) Wait() {
 	<-w.ready
 }
 
-func (w *StramingResponseWriter) Response() *events.LambdaFunctionURLStreamingResponse {
+func (w *StreamingResponseWriter) Response() *events.LambdaFunctionURLStreamingResponse {
 	return &w.resp
 }
 
@@ -322,7 +319,7 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			return w.Response(), nil
 		}
 		req.Header.Set("Lambda-Runtime-Function-Response-Mode", "streaming")
-		w := NewStramingResponseWriter()
+		w := NewStreamingResponseWriter()
 		go func() {
 			defer w.Close()
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
