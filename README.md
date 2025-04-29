@@ -134,6 +134,41 @@ You must add [Lambda external extensions](https://docs.aws.amazon.com/lambda/lat
 
 The handler must return in 500ms.
 
+### Lambda response streaming support
+
+ridge supports Lambda response streaming. See [Response streaming for Lambda functions](https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html).
+
+`RIDGE_STREAMING_RESPONSE` environment variable is used to enable the streaming response. If the environment variable is set to `1` or `true`, ridge enables the streaming response.
+
+In this case, you **must** set `InvokeMode` to `RESPONSE_STREAM` in your Lambda function URLs config. Otherwise, the function will not work.
+
+See also [Invoking a response streaming enabled function using Lambda function URLs](https://docs.aws.amazon.com/lambda/latest/dg/config-rs-invoke-furls.html).
+
+A example of ridge application with streaming response is below.
+
+```go
+func main() {
+    var mux = http.NewServeMux()
+    mux.HandleFunc("/", handleStream)
+    ridge.Run(":8080", "/", mux)
+}
+
+func handleStream(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/plain")
+    flusher, ok := w.(http.Flusher)
+    if !ok {
+        panic("expected http.ResponseWriter to be an http.Flusher")
+    }
+    for i := 1; i <= 3; i++ {
+        fmt.Fprintf(w, "Chunk #%d\n", i)
+        flusher.Flush()
+        time.Sleep(time.Second)
+    }
+}
+```
+
+This application works on AWS Lambda(streaming response mode) and also as a standalone HTTP server.
+
 ## LICENSE
 
 The MIT License (MIT)

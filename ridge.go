@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -236,14 +237,18 @@ func RunWithContext(ctx context.Context, address, prefix string, mux http.Handle
 
 // Ridge is a struct to run http handler on AWS Lambda runtime or net/http's server.
 type Ridge struct {
-	Address          string
-	Prefix           string
-	Mux              http.Handler
-	RequestBuilder   func(json.RawMessage) (*http.Request, error)
-	TermHandler      func()
-	ProxyProtocol    bool
-	StramingResponse bool
+	Address           string
+	Prefix            string
+	Mux               http.Handler
+	RequestBuilder    func(json.RawMessage) (*http.Request, error)
+	TermHandler       func()
+	ProxyProtocol     bool
+	StreamingResponse bool
 }
+
+const (
+	StreamingResponseEnv = "RIDGE_STREAMING_RESPONSE"
+)
 
 // New creates a new Ridge.
 func New(address, prefix string, mux http.Handler) *Ridge {
@@ -261,9 +266,29 @@ func (r *Ridge) Run() {
 	r.RunWithContext(context.Background())
 }
 
+func (r *Ridge) setStreamingResponse() {
+	if r.StreamingResponse {
+		return
+	}
+	v, ok := os.LookupEnv(StreamingResponseEnv)
+	if !ok {
+		return
+	}
+	s, err := strconv.ParseBool(v)
+	if err != nil {
+		log.Printf("%s is not a valid boolean: %s", StreamingResponseEnv, v)
+		return
+	}
+	r.StreamingResponse = s
+	if r.StreamingResponse {
+		log.Println("streaming response mode is enabled. You must set Lambda function's InvokeMode to RESPONSE_STREAM")
+	}
+}
+
 // RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
 func (r *Ridge) RunWithContext(ctx context.Context) {
 	if AsLambdaHandler() {
+		r.setStreamingResponse()
 		r.runAsLambdaHandler(ctx)
 	} else {
 		// If it is not running on the AWS Lambda runtime or running as a Lambda extension,
@@ -313,12 +338,11 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Aws-Request-Id", lc.AwsRequestID)
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
-		if !r.StramingResponse {
+		if !r.StreamingResponse {
 			w := NewResponseWriter()
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
 			return w.Response(), nil
 		}
-		req.Header.Set("Lambda-Runtime-Function-Response-Mode", "streaming")
 		w := NewStreamingResponseWriter()
 		go func() {
 			defer w.Close()
