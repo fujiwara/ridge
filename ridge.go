@@ -236,13 +236,13 @@ func RunWithContext(ctx context.Context, address, prefix string, mux http.Handle
 
 // Ridge is a struct to run http handler on AWS Lambda runtime or net/http's server.
 type Ridge struct {
-	Address          string
-	Prefix           string
-	Mux              http.Handler
-	RequestBuilder   func(json.RawMessage) (*http.Request, error)
-	TermHandler      func()
-	ProxyProtocol    bool
-	StramingResponse bool
+	Address           string
+	Prefix            string
+	Mux               http.Handler
+	RequestBuilder    func(json.RawMessage) (*http.Request, error)
+	TermHandler       func()
+	ProxyProtocol     bool
+	StreamingResponse bool
 }
 
 // New creates a new Ridge.
@@ -313,12 +313,11 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Aws-Request-Id", lc.AwsRequestID)
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
-		if !r.StramingResponse {
+		if !r.StreamingResponse {
 			w := NewResponseWriter()
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
 			return w.Response(), nil
 		}
-		req.Header.Set("Lambda-Runtime-Function-Response-Mode", "streaming")
 		w := NewStreamingResponseWriter()
 		go func() {
 			defer w.Close()
