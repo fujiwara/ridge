@@ -1,8 +1,12 @@
 package ridge_test
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"testing"
+	"time"
 
 	"github.com/fujiwara/ridge"
 )
@@ -52,5 +56,63 @@ func TestResponse(t *testing.T) {
 			}
 			t.Logf("%#v\n", res2)
 		})
+	}
+}
+
+func TestStreamingResponse(t *testing.T) {
+	w := ridge.NewStreamingResponseWriter()
+	signalChan := make(chan struct{}, 1)
+	defer close(signalChan)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go func() {
+		defer w.Close()
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(200)
+		select {
+		case <-ctx.Done():
+			t.Error("timeout")
+			return
+		case <-signalChan:
+		}
+		for i := 0; i < 5; i++ {
+			fmt.Fprintf(w, "data: %d\n\n", i)
+			w.Flush()
+		}
+	}()
+
+	w.Wait()
+	res := w.Response()
+	if res.StatusCode != 200 {
+		t.Errorf("unexpected status code: %d", res.StatusCode)
+	}
+	if res.Headers["Content-Type"] != "text/event-stream" {
+		t.Errorf("unexpected Content-Type: %s", res.Headers["Content-Type"])
+	}
+	if len(res.Cookies) != 0 {
+		t.Errorf("unexpected cookies: %#v", res.Cookies)
+	}
+
+	signalChan <- struct{}{}
+	actual, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Errorf("unexpected error while reading body: %v", err)
+	}
+	if len(actual) == 0 {
+		t.Errorf("unexpected empty body")
+	}
+	expected := `data: 0
+
+data: 1
+
+data: 2
+
+data: 3
+
+data: 4
+
+`
+	if string(actual) != expected {
+		t.Errorf("unexpected body: %s", string(actual))
 	}
 }
