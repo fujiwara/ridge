@@ -4,6 +4,12 @@
 - implement for InvokeMode response_stream by @mashiike in https://github.com/fujiwara/ridge/pull/39
 - adds tagpr by @fujiwara in https://github.com/fujiwara/ridge/pull/41
 - Set ridge.StreamingResponse from environment variable RIDGE_STREAMING_RESPONSE by @fujiwara in https://github.com/fujiwara/ridge/pull/40
+- Release for v0.13.0 by @github-actions in https://github.com/fujiwara/ridge/pull/42
+
+## [v0.13.0](https://github.com/fujiwara/ridge/compare/v0.12.1...v0.13.0) - 2025-04-29
+- implement for InvokeMode response_stream by @mashiike in https://github.com/fujiwara/ridge/pull/39
+- adds tagpr by @fujiwara in https://github.com/fujiwara/ridge/pull/41
+- Set ridge.StreamingResponse from environment variable RIDGE_STREAMING_RESPONSE by @fujiwara in https://github.com/fujiwara/ridge/pull/40
 
 ## [v0.12.1](https://github.com/fujiwara/ridge/compare/v0.12.0...v0.12.1) - 2024-11-18
 - fix: mount at non-root path by @fujiwara in https://github.com/fujiwara/ridge/pull/38
