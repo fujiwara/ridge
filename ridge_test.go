@@ -1,6 +1,7 @@
 package ridge_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/fujiwara/ridge"
@@ -37,6 +38,38 @@ func TestRuntimeEnvironments(t *testing.T) {
 			}
 			if ridge.AsLambdaExtension() != tt.asLambdaExtension {
 				t.Errorf("AsLambdaExtension() = %v, want %v", ridge.AsLambdaExtension(), tt.asLambdaExtension)
+			}
+		})
+	}
+}
+
+func TestStreamingEnv(t *testing.T) {
+	tests := []struct {
+		pre   bool
+		value string
+		want  bool
+	}{
+		{false, "1", true},
+		{false, "0", false},
+		{true, "", true},
+		{true, "1", true},
+		{true, "0", true},
+		{false, "true", true},
+		{false, "false", false},
+		{false, "True", true},
+		{false, "False", false},
+		{false, "-xxx", false},
+	}
+
+	for _, tt := range tests {
+		name := fmt.Sprintf("pre=%v,env=%s", tt.pre, tt.value)
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("RIDGE_STREAMING_RESPONSE", tt.value)
+			r := ridge.New(":9999", "/", nil)
+			r.StreamingResponse = tt.pre
+			r.SetStreamingResponse()
+			if r.StreamingResponse != tt.want {
+				t.Errorf("StreamingResponse = %v, want %v", r.StreamingResponse, tt.want)
 			}
 		})
 	}
