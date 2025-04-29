@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -245,6 +246,10 @@ type Ridge struct {
 	StreamingResponse bool
 }
 
+const (
+	StreamingResponseEnv = "RIDGE_STREAMING_RESPONSE"
+)
+
 // New creates a new Ridge.
 func New(address, prefix string, mux http.Handler) *Ridge {
 	return &Ridge{
@@ -261,9 +266,29 @@ func (r *Ridge) Run() {
 	r.RunWithContext(context.Background())
 }
 
+func (r *Ridge) setStreamingResponse() {
+	if r.StreamingResponse {
+		return
+	}
+	v, ok := os.LookupEnv(StreamingResponseEnv)
+	if !ok {
+		return
+	}
+	s, err := strconv.ParseBool(v)
+	if err != nil {
+		log.Printf("%s is not a valid boolean: %s", StreamingResponseEnv, v)
+		return
+	}
+	r.StreamingResponse = s
+	if r.StreamingResponse {
+		log.Println("streaming response mode is enabled. You must set Lambda function's InvokeMode to RESPONSE_STREAM")
+	}
+}
+
 // RunWithContext runs http handler on AWS Lambda runtime or net/http's server with context.
 func (r *Ridge) RunWithContext(ctx context.Context) {
 	if AsLambdaHandler() {
+		r.setStreamingResponse()
 		r.runAsLambdaHandler(ctx)
 	} else {
 		// If it is not running on the AWS Lambda runtime or running as a Lambda extension,
