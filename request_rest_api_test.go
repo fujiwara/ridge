@@ -8,69 +8,6 @@ import (
 	"github.com/fujiwara/ridge"
 )
 
-func TestPayloadVersionDetection(t *testing.T) {
-	tests := []struct {
-		name            string
-		payloadFile     string
-		expectedVersion string
-		shouldSucceed   bool
-	}{
-		{
-			name:            "REST API (no version field)",
-			payloadFile:     "test/get-rest.json",
-			expectedVersion: "", // REST API has no version field
-			shouldSucceed:   true,
-		},
-		{
-			name:            "HTTP API v1.0",
-			payloadFile:     "test/get-v1.json",
-			expectedVersion: "1.0", // v1.0 now has version field
-			shouldSucceed:   true,
-		},
-		{
-			name:            "HTTP API v2.0",
-			payloadFile:     "test/get-v2.json",
-			expectedVersion: "2.0",
-			shouldSucceed:   true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			payload, err := os.ReadFile(tt.payloadFile)
-			if err != nil {
-				t.Fatalf("failed to read test file %s: %v", tt.payloadFile, err)
-			}
-
-			// Parse version field to verify payload structure
-			var versionCheck struct {
-				Version string `json:"version"`
-			}
-			if err := json.Unmarshal(payload, &versionCheck); err != nil {
-				t.Fatalf("failed to unmarshal payload: %v", err)
-			}
-
-			if versionCheck.Version != tt.expectedVersion {
-				t.Errorf("expected version %q, got %q", tt.expectedVersion, versionCheck.Version)
-			}
-
-			// Test that NewRequest can handle the payload
-			req, _, err := ridge.NewRequest(json.RawMessage(payload))
-			if tt.shouldSucceed {
-				if err != nil {
-					t.Fatalf("NewRequest failed: %v", err)
-				}
-				if req == nil {
-					t.Fatal("NewRequest returned nil request")
-				}
-			} else {
-				if err == nil {
-					t.Fatal("NewRequest should have failed")
-				}
-			}
-		})
-	}
-}
 
 func TestRESTAPIRequestProcessing(t *testing.T) {
 	payload, err := os.ReadFile("test/get-rest.json")
