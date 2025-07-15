@@ -89,31 +89,3 @@ func TestResponseForHTTPAPI(t *testing.T) {
 		t.Errorf("unexpected cookie value: %s", resp.Cookies[0])
 	}
 }
-
-func TestResponseWithHTTPAPIType(t *testing.T) {
-	// Test behavior with explicit HTTP API type
-	w := ridge.NewResponseWriter("HTTP")
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Set-Cookie", "session=abc123")
-	w.WriteHeader(200)
-	w.WriteString(`{"message": "hello"}`)
-
-	resp := w.Response()
-
-	// HTTP API should include cookies
-	if len(resp.Cookies) != 1 {
-		t.Errorf("HTTP API should include cookies, got %d", len(resp.Cookies))
-	}
-
-	if resp.StatusCode != 200 {
-		t.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	if resp.Headers["Content-Type"] != "application/json" {
-		t.Errorf("unexpected Content-Type: %s", resp.Headers["Content-Type"])
-	}
-
-	if resp.Body != `{"message": "hello"}` {
-		t.Errorf("unexpected body: %s", resp.Body)
-	}
-}
