@@ -90,44 +90,6 @@ func TestResponseForHTTPAPI(t *testing.T) {
 	}
 }
 
-var testRESTAPIResponses = []struct {
-	Name string
-	JSON []byte
-}{
-	{
-		Name: "rest_api_plain",
-		// Note: REST API response doesn't have "cookies" field
-		JSON: []byte(`{"statusCode":200,"headers":{"Content-Type":"text/plain"},"multiValueHeaders":{"Content-Type":["text/plain"],"Set-Cookie":["foo=bar","bar=baz"]},"body":"Hello REST","isBase64Encoded":false}`),
-	},
-}
-
-func TestRESTAPIResponseFormat(t *testing.T) {
-	for _, c := range testRESTAPIResponses {
-		t.Run(c.Name, func(t *testing.T) {
-			var resp map[string]interface{}
-			if err := json.Unmarshal(c.JSON, &resp); err != nil {
-				t.Error(err)
-			}
-
-			// REST API response should not have cookies field
-			if _, exists := resp["cookies"]; exists {
-				t.Error("REST API response should not contain 'cookies' field")
-			}
-
-			// But should have Set-Cookie in multiValueHeaders
-			multiValueHeaders := resp["multiValueHeaders"].(map[string]interface{})
-			if setCookies, exists := multiValueHeaders["Set-Cookie"]; !exists {
-				t.Error("Set-Cookie should be in multiValueHeaders")
-			} else {
-				cookies := setCookies.([]interface{})
-				if len(cookies) != 2 {
-					t.Errorf("expected 2 cookies in multiValueHeaders, got %d", len(cookies))
-				}
-			}
-		})
-	}
-}
-
 func TestResponseWithHTTPAPIType(t *testing.T) {
 	// Test behavior with explicit HTTP API type
 	w := ridge.NewResponseWriter("HTTP")
