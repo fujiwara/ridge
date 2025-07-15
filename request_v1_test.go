@@ -17,9 +17,9 @@ import (
 )
 
 func TestGetRequest(t *testing.T) {
-	f, err := os.Open("test/get.json")
+	f, err := os.Open("test/get-v1.json")
 	if err != nil {
-		t.Fatalf("failed to open test/get.json: %s", err)
+		t.Fatalf("failed to open test/get-v1.json: %s", err)
 	}
 	body, _ := io.ReadAll(f)
 	r, err := ridge.NewRequest(json.RawMessage(body))

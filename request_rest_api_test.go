@@ -23,8 +23,8 @@ func TestPayloadVersionDetection(t *testing.T) {
 		},
 		{
 			name:            "HTTP API v1.0",
-			payloadFile:     "test/get.json",
-			expectedVersion: "", // v1.0 has no version field in current implementation
+			payloadFile:     "test/get-v1.json",
+			expectedVersion: "1.0", // v1.0 now has version field
 			shouldSucceed:   true,
 		},
 		{
@@ -177,7 +177,7 @@ func TestRequestContextDetection(t *testing.T) {
 		},
 		{
 			name:       "HTTP API v1.0 payload",
-			payload:    "test/get.json",
+			payload:    "test/get-v1.json",
 			expectedAPIType: "HTTP",
 		},
 		{
