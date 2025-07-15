@@ -32,7 +32,7 @@ func TestResponse(t *testing.T) {
 			if err := json.Unmarshal(c.JSON, &res); err != nil {
 				t.Error(err)
 			}
-			w := ridge.NewResponseWriter()
+			w := ridge.NewResponseWriter("HTTP")
 			if n, err := res.WriteTo(w); err != nil {
 				t.Error(err)
 			} else if n != 9 {
