@@ -12,22 +12,22 @@ func TestNewRequestAPITypeDetection(t *testing.T) {
 	tests := []struct {
 		name            string
 		payloadFile     string
-		expectedAPIType string
+		expectedAPIType ridge.APIType
 	}{
 		{
 			name:            "REST API payload",
 			payloadFile:     "test/get-rest.json",
-			expectedAPIType: "REST",
+			expectedAPIType: ridge.APITypeREST,
 		},
 		{
 			name:            "HTTP API v1.0 payload",
 			payloadFile:     "test/get-v1.json",
-			expectedAPIType: "HTTP",
+			expectedAPIType: ridge.APITypeHTTP,
 		},
 		{
 			name:            "HTTP API v2.0 payload",
 			payloadFile:     "test/get-v2.json",
-			expectedAPIType: "HTTP",
+			expectedAPIType: ridge.APITypeHTTP,
 		},
 	}
 

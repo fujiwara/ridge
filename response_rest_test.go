@@ -21,7 +21,7 @@ func TestResponseForRESTAPI(t *testing.T) {
 	}
 
 	// Create ResponseWriter with REST API type
-	w := ridge.NewResponseWriter("REST")
+	w := ridge.NewResponseWriter(ridge.APITypeREST)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Set-Cookie", "session=abc123")
 	w.Header().Add("Set-Cookie", "token=xyz789")
@@ -72,7 +72,7 @@ func TestResponseForHTTPAPI(t *testing.T) {
 	}
 
 	// Create ResponseWriter with HTTP API type
-	w := ridge.NewResponseWriter("HTTP")
+	w := ridge.NewResponseWriter(ridge.APITypeHTTP)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Set-Cookie", "session=abc123")
 	w.WriteHeader(200)

@@ -32,6 +32,28 @@ var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/x
 // DefaultContentType is a default content-type when missing in response.
 var DefaultContentType = "text/plain; charset=utf-8"
 
+// APIType represents the type of API Gateway integration
+type APIType int
+
+const (
+	// APITypeREST represents REST API integration
+	APITypeREST APIType = iota
+	// APITypeHTTP represents HTTP API integration
+	APITypeHTTP
+)
+
+// String returns the string representation of APIType
+func (a APIType) String() string {
+	switch a {
+	case APITypeREST:
+		return "REST"
+	case APITypeHTTP:
+		return "HTTP"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
 	StatusCode        int               `json:"statusCode"`
@@ -62,9 +84,9 @@ func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
 }
 
 // NewResponseWriter creates ResponseWriter
-func NewResponseWriter(apiType string) *ResponseWriter {
-	if apiType != "REST" && apiType != "HTTP" {
-		panic("invalid apiType: " + apiType)
+func NewResponseWriter(apiType APIType) *ResponseWriter {
+	if apiType != APITypeREST && apiType != APITypeHTTP {
+		panic("invalid apiType: " + apiType.String())
 	}
 	w := &ResponseWriter{
 		Buffer:     bytes.Buffer{},
@@ -80,7 +102,7 @@ type ResponseWriter struct {
 	bytes.Buffer
 	header     http.Header
 	statusCode int
-	apiType    string
+	apiType    APIType
 }
 
 func (w *ResponseWriter) Header() http.Header {
@@ -92,7 +114,7 @@ func (w *ResponseWriter) WriteHeader(code int) {
 }
 
 func (w *ResponseWriter) getCookiesIfNeeded() []string {
-	if w.apiType == "REST" {
+	if w.apiType == APITypeREST {
 		return nil // REST API responses should not have cookies field (omitempty will exclude it)
 	}
 	return w.header.Values("Set-Cookie") // HTTP API and default behavior include cookies
@@ -252,7 +274,7 @@ type Ridge struct {
 	Address           string
 	Prefix            string
 	Mux               http.Handler
-	RequestBuilder    func(json.RawMessage) (*http.Request, string, error)
+	RequestBuilder    func(json.RawMessage) (*http.Request, APIType, error)
 	TermHandler       func()
 	ProxyProtocol     bool
 	StreamingResponse bool
