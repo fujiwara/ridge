@@ -15,7 +15,7 @@ func TestResponseForRESTAPI(t *testing.T) {
 		t.Fatalf("failed to read test file: %v", err)
 	}
 
-	_, err = ridge.NewRequest(json.RawMessage(payload))
+	_, _, err = ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestResponseForHTTPAPI(t *testing.T) {
 		t.Fatalf("failed to read test file: %v", err)
 	}
 
-	_, err = ridge.NewRequest(json.RawMessage(payload))
+	_, _, err = ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)
 	}

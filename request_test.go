@@ -9,7 +9,7 @@ import (
 
 func TestInvalidRequest(t *testing.T) {
 	invalidPayload := json.RawMessage(`{"foo":"bar"}`)
-	_, err := ridge.NewRequest(invalidPayload)
+	_, _, err := ridge.NewRequest(invalidPayload)
 	if err == nil {
 		t.Error("expected error, but got nil")
 	}

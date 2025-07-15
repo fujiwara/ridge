@@ -55,7 +55,7 @@ func TestPayloadVersionDetection(t *testing.T) {
 			}
 
 			// Test that NewRequest can handle the payload
-			req, err := ridge.NewRequest(json.RawMessage(payload))
+			req, _, err := ridge.NewRequest(json.RawMessage(payload))
 			if tt.shouldSucceed {
 				if err != nil {
 					t.Fatalf("NewRequest failed: %v", err)
@@ -78,7 +78,7 @@ func TestRESTAPIRequestProcessing(t *testing.T) {
 		t.Fatalf("failed to read test file: %v", err)
 	}
 
-	req, err := ridge.NewRequest(json.RawMessage(payload))
+	req, _, err := ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestPayloadVersionForced(t *testing.T) {
 	// Force version to 2.0
 	ridge.PayloadVersion = "2.0"
 
-	req, err := ridge.NewRequest(json.RawMessage(payload))
+	req, _, err := ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		// This is expected to fail because REST API payload structure doesn't match v2.0 format
 		t.Logf("Expected failure when forcing v2.0 on REST API payload: %v", err)
@@ -138,7 +138,7 @@ func TestPayloadVersionForced(t *testing.T) {
 	// Reset to empty to test auto-detection
 	ridge.PayloadVersion = ""
 
-	req2, err := ridge.NewRequest(json.RawMessage(payload))
+	req2, _, err := ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)
 	}
@@ -152,7 +152,7 @@ func TestUnsupportedPayloadVersion(t *testing.T) {
 	// Create a payload with an unsupported version
 	unsupportedPayload := `{"version": "3.0", "path": "/test"}`
 
-	_, err := ridge.NewRequest(json.RawMessage(unsupportedPayload))
+	_, _, err := ridge.NewRequest(json.RawMessage(unsupportedPayload))
 	if err == nil {
 		t.Fatal("NewRequest should have failed for unsupported version")
 	}

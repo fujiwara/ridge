@@ -252,7 +252,7 @@ type Ridge struct {
 	Address           string
 	Prefix            string
 	Mux               http.Handler
-	RequestBuilder    func(json.RawMessage) (*http.Request, error)
+	RequestBuilder    func(json.RawMessage) (*http.Request, string, error)
 	TermHandler       func()
 	ProxyProtocol     bool
 	StreamingResponse bool
@@ -326,17 +326,6 @@ func AsLambdaHandler() bool {
 	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
 }
 
-// detectAPIType determines the API Gateway type from the event payload
-func detectAPIType(event json.RawMessage) string {
-	var versionCheck struct {
-		Version string `json:"version"`
-	}
-	json.Unmarshal(event, &versionCheck)
-	if versionCheck.Version != "" {
-		return "HTTP" // HTTP API (v1.0/v2.0) has version field
-	}
-	return "REST" // REST API has no version field
-}
 
 func (r *Ridge) mountMux() http.Handler {
 	m := http.NewServeMux()
@@ -353,7 +342,7 @@ func (r *Ridge) mountMux() http.Handler {
 
 func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 	handler := func(ctx context.Context, event json.RawMessage) (interface{}, error) {
-		req, err := r.RequestBuilder(event)
+		req, apiType, err := r.RequestBuilder(event)
 		if err != nil {
 			log.Println(err)
 			return nil, err
@@ -363,7 +352,6 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
 		if !r.StreamingResponse {
-			apiType := detectAPIType(event)
 			w := NewResponseWriter(apiType)
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
 			return w.Response(), nil
