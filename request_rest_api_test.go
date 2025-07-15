@@ -8,7 +8,6 @@ import (
 	"github.com/fujiwara/ridge"
 )
 
-
 func TestRESTAPIRequestProcessing(t *testing.T) {
 	payload, err := os.ReadFile("test/get-rest.json")
 	if err != nil {

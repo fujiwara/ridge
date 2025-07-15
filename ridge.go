@@ -326,7 +326,6 @@ func AsLambdaHandler() bool {
 	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
 }
 
-
 func (r *Ridge) mountMux() http.Handler {
 	m := http.NewServeMux()
 	switch {
