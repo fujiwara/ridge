@@ -37,7 +37,7 @@ type Response struct {
 	StatusCode        int               `json:"statusCode"`
 	Headers           map[string]string `json:"headers"`
 	MultiValueHeaders http.Header       `json:"multiValueHeaders"`
-	Cookies           []string          `json:"cookies"`
+	Cookies           []string          `json:"cookies,omitempty"`
 	Body              string            `json:"body"`
 	IsBase64Encoded   bool              `json:"isBase64Encoded"`
 }
@@ -62,11 +62,12 @@ func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
 }
 
 // NewResponseWriter creates ResponseWriter
-func NewResponseWriter() *ResponseWriter {
+func NewResponseWriter(apiType string) *ResponseWriter {
 	w := &ResponseWriter{
 		Buffer:     bytes.Buffer{},
 		statusCode: http.StatusOK,
 		header:     make(http.Header),
+		apiType:    apiType,
 	}
 	return w
 }
@@ -76,6 +77,7 @@ type ResponseWriter struct {
 	bytes.Buffer
 	header     http.Header
 	statusCode int
+	apiType    string
 }
 
 func (w *ResponseWriter) Header() http.Header {
@@ -84,6 +86,13 @@ func (w *ResponseWriter) Header() http.Header {
 
 func (w *ResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
+}
+
+func (w *ResponseWriter) getCookiesIfNeeded() []string {
+	if w.apiType == "REST" {
+		return nil // REST API responses should not have cookies field (omitempty will exclude it)
+	}
+	return w.header.Values("Set-Cookie") // HTTP API and default behavior include cookies
 }
 
 func (w *ResponseWriter) Response() Response {
@@ -109,7 +118,7 @@ func (w *ResponseWriter) Response() Response {
 		StatusCode:        w.statusCode,
 		Headers:           h,
 		MultiValueHeaders: w.header,
-		Cookies:           w.header.Values("Set-Cookie"),
+		Cookies:           w.getCookiesIfNeeded(),
 		Body:              body,
 		IsBase64Encoded:   isBase64Encoded,
 	}
@@ -339,7 +348,7 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
 		if !r.StreamingResponse {
-			w := NewResponseWriter()
+			w := NewResponseWriter("")
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
 			return w.Response(), nil
 		}
