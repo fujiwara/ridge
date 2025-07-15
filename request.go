@@ -38,43 +38,33 @@ type RequestV1 struct {
 type Request = RequestV1
 
 // NewRequest creates *net/http.Request from a Request.
-func NewRequest(event json.RawMessage) (*http.Request, APIType, error) {
+func NewRequest(event json.RawMessage) (*http.Request, error) {
 	var r struct {
 		Version string `json:"version"`
 	}
 	if PayloadVersion == "" {
 		if err := json.Unmarshal(event, &r); err != nil {
-			return nil, APITypeREST, err
+			return nil, err
 		}
 	} else {
 		r.Version = PayloadVersion
-	}
-
-	// Determine API type based on version field
-	var apiType APIType
-	if r.Version != "" {
-		apiType = APITypeHTTP // HTTP API (v1.0/v2.0) has version field
-	} else {
-		apiType = APITypeREST // REST API has no version field
 	}
 
 	switch r.Version {
 	case "2.0":
 		var rv2 RequestV2
 		if err := json.Unmarshal(event, &rv2); err != nil {
-			return nil, APITypeREST, err
+			return nil, err
 		}
-		req, err := rv2.httpRequest()
-		return req, apiType, err
+		return rv2.httpRequest()
 	case "1.0", "":
 		var rv1 RequestV1
 		if err := json.Unmarshal(event, &rv1); err != nil {
-			return nil, APITypeREST, err
+			return nil, err
 		}
-		req, err := rv1.httpRequest()
-		return req, apiType, err
+		return rv1.httpRequest()
 	default:
-		return nil, APITypeREST, fmt.Errorf("payload Version %s is not supported", r.Version)
+		return nil, fmt.Errorf("payload Version %s is not supported", r.Version)
 	}
 }
 

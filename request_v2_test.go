@@ -19,7 +19,7 @@ func TestGetRequestV2(t *testing.T) {
 		t.Fatalf("failed to open test/get-v2.json: %s", err)
 	}
 	body, _ := io.ReadAll(f)
-	r, _, err := ridge.NewRequest(json.RawMessage(body))
+	r, err := ridge.NewRequest(json.RawMessage(body))
 	if err != nil {
 		t.Fatalf("failed to decode getEvent: %s", err)
 	}
@@ -59,7 +59,7 @@ func TestPostRequestV2(t *testing.T) {
 		t.Fatalf("failed to open test/post-v2.json: %s", err)
 	}
 	body, _ := io.ReadAll(f)
-	r, _, err := ridge.NewRequest(json.RawMessage(body))
+	r, err := ridge.NewRequest(json.RawMessage(body))
 	if err != nil {
 		t.Fatalf("failed to decode postEvent: %s", err)
 	}
@@ -109,7 +109,7 @@ func TestV2RoundTrip(t *testing.T) {
 			}
 			b, _ := json.Marshal(payload)
 			t.Logf("payload: %s", string(b))
-			rr, _, err := ridge.NewRequest(json.RawMessage(b))
+			rr, err := ridge.NewRequest(json.RawMessage(b))
 			if err != nil {
 				t.Error("failed to decode RequestV1", err)
 			}
@@ -134,7 +134,7 @@ func TestMinimalValidRequestV2(t *testing.T) {
     }
   }
 }`)
-	r, _, err := ridge.NewRequest(payload)
+	r, err := ridge.NewRequest(payload)
 	if err != nil {
 		t.Error("failed to decode minimal valid RequestV2", err)
 	}
