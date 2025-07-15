@@ -128,9 +128,9 @@ func TestRESTAPIResponseFormat(t *testing.T) {
 	}
 }
 
-func TestResponseWithoutContext(t *testing.T) {
-	// Test behavior with unspecified API type
-	w := ridge.NewResponseWriter("")
+func TestResponseWithHTTPAPIType(t *testing.T) {
+	// Test behavior with explicit HTTP API type
+	w := ridge.NewResponseWriter("HTTP")
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Set-Cookie", "session=abc123")
 	w.WriteHeader(200)
@@ -138,9 +138,9 @@ func TestResponseWithoutContext(t *testing.T) {
 
 	resp := w.Response()
 
-	// Without context, should default to including cookies
+	// HTTP API should include cookies
 	if len(resp.Cookies) != 1 {
-		t.Errorf("Default behavior should include cookies, got %d", len(resp.Cookies))
+		t.Errorf("HTTP API should include cookies, got %d", len(resp.Cookies))
 	}
 
 	if resp.StatusCode != 200 {

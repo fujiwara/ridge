@@ -63,6 +63,9 @@ func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
 
 // NewResponseWriter creates ResponseWriter
 func NewResponseWriter(apiType string) *ResponseWriter {
+	if apiType != "REST" && apiType != "HTTP" {
+		panic("invalid apiType: " + apiType)
+	}
 	w := &ResponseWriter{
 		Buffer:     bytes.Buffer{},
 		statusCode: http.StatusOK,
@@ -323,6 +326,18 @@ func AsLambdaHandler() bool {
 	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
 }
 
+// detectAPIType determines the API Gateway type from the event payload
+func detectAPIType(event json.RawMessage) string {
+	var versionCheck struct {
+		Version string `json:"version"`
+	}
+	json.Unmarshal(event, &versionCheck)
+	if versionCheck.Version != "" {
+		return "HTTP" // HTTP API (v1.0/v2.0) has version field
+	}
+	return "REST" // REST API has no version field
+}
+
 func (r *Ridge) mountMux() http.Handler {
 	m := http.NewServeMux()
 	switch {
@@ -348,7 +363,8 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
 		if !r.StreamingResponse {
-			w := NewResponseWriter("")
+			apiType := detectAPIType(event)
+			w := NewResponseWriter(apiType)
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
 			return w.Response(), nil
 		}
