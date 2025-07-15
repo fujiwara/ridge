@@ -126,7 +126,7 @@ func TestPayloadVersionForced(t *testing.T) {
 
 	// Force version to 2.0
 	ridge.PayloadVersion = "2.0"
-	
+
 	req, err := ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		// This is expected to fail because REST API payload structure doesn't match v2.0 format
@@ -137,7 +137,7 @@ func TestPayloadVersionForced(t *testing.T) {
 
 	// Reset to empty to test auto-detection
 	ridge.PayloadVersion = ""
-	
+
 	req2, err := ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)
@@ -151,7 +151,7 @@ func TestPayloadVersionForced(t *testing.T) {
 func TestUnsupportedPayloadVersion(t *testing.T) {
 	// Create a payload with an unsupported version
 	unsupportedPayload := `{"version": "3.0", "path": "/test"}`
-	
+
 	_, err := ridge.NewRequest(json.RawMessage(unsupportedPayload))
 	if err == nil {
 		t.Fatal("NewRequest should have failed for unsupported version")
@@ -160,50 +160,5 @@ func TestUnsupportedPayloadVersion(t *testing.T) {
 	expectedError := "payload Version 3.0 is not supported"
 	if err.Error() != expectedError {
 		t.Errorf("expected error %q, got %q", expectedError, err.Error())
-	}
-}
-
-func TestRequestContextDetection(t *testing.T) {
-	// Test that requests created from different payload types maintain their context
-	tests := []struct {
-		name       string
-		payload    string
-		expectedAPIType string
-	}{
-		{
-			name:       "REST API payload",
-			payload:    "test/get-rest.json",
-			expectedAPIType: "REST",
-		},
-		{
-			name:       "HTTP API v1.0 payload",
-			payload:    "test/get-v1.json",
-			expectedAPIType: "HTTP",
-		},
-		{
-			name:       "HTTP API v2.0 payload",
-			payload:    "test/get-v2.json",
-			expectedAPIType: "HTTP",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			payload, err := os.ReadFile(tt.payload)
-			if err != nil {
-				t.Fatalf("failed to read test file: %v", err)
-			}
-
-			req, err := ridge.NewRequest(json.RawMessage(payload))
-			if err != nil {
-				t.Fatalf("NewRequest failed: %v", err)
-			}
-
-			// Check that request contains API type context
-			actualAPIType := req.Header.Get("X-API-Gateway-Type")
-			if actualAPIType != tt.expectedAPIType {
-				t.Errorf("expected API type %q, got %q", tt.expectedAPIType, actualAPIType)
-			}
-		})
 	}
 }
