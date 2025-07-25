@@ -43,7 +43,6 @@ const (
 	APITypeHTTP
 )
 
-
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
 	StatusCode        int               `json:"statusCode"`
