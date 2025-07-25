@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"mime"
@@ -42,17 +43,6 @@ const (
 	APITypeHTTP
 )
 
-// String returns the string representation of APIType
-func (a APIType) String() string {
-	switch a {
-	case APITypeREST:
-		return "REST"
-	case APITypeHTTP:
-		return "HTTP"
-	default:
-		return "UNKNOWN"
-	}
-}
 
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
@@ -86,7 +76,7 @@ func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
 // NewResponseWriter creates ResponseWriter
 func NewResponseWriter(apiType APIType) *ResponseWriter {
 	if apiType != APITypeREST && apiType != APITypeHTTP {
-		panic("invalid apiType: " + apiType.String())
+		panic(fmt.Sprintf("invalid apiType: %d", int(apiType)))
 	}
 	w := &ResponseWriter{
 		Buffer:     bytes.Buffer{},
