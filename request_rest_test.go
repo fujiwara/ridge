@@ -46,6 +46,11 @@ func TestRESTAPIRequestProcessing(t *testing.T) {
 	if req.Header.Get("X-Amzn-RequestId") != "817175b9-890f-11e6-960e-4f321627a748" {
 		t.Errorf("expected request ID header, got %s", req.Header.Get("X-Amzn-RequestId"))
 	}
+
+	// Verify that REST API has no version header
+	if req.Header.Get(ridge.PayloadVersionHeaderName) != "" {
+		t.Errorf("REST API should not have version header, got %s", req.Header.Get(ridge.PayloadVersionHeaderName))
+	}
 }
 
 func TestPayloadVersionForced(t *testing.T) {

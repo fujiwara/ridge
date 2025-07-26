@@ -20,15 +20,16 @@ func TestResponseForRESTAPI(t *testing.T) {
 		t.Fatalf("NewRequest failed: %v", err)
 	}
 
-	// Create ResponseWriter with REST API type
-	w := ridge.NewResponseWriter(ridge.APITypeREST)
+	// Create ResponseWriter
+	w := ridge.NewResponseWriter()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Set-Cookie", "session=abc123")
 	w.Header().Add("Set-Cookie", "token=xyz789")
 	w.WriteHeader(200)
 	w.WriteString(`{"message": "hello"}`)
 
-	resp := w.Response()
+	// Use ResponseFor with empty version for REST API
+	resp := w.ResponseFor("")
 
 	// REST API responses should not have cookies field
 	if len(resp.Cookies) != 0 {
@@ -66,19 +67,26 @@ func TestResponseForHTTPAPI(t *testing.T) {
 		t.Fatalf("failed to read test file: %v", err)
 	}
 
-	_, err = ridge.NewRequest(json.RawMessage(payload))
+	req, err := ridge.NewRequest(json.RawMessage(payload))
 	if err != nil {
 		t.Fatalf("NewRequest failed: %v", err)
 	}
 
-	// Create ResponseWriter with HTTP API type
-	w := ridge.NewResponseWriter(ridge.APITypeHTTP)
+	// Verify that HTTP API has version header
+	version := req.Header.Get(ridge.PayloadVersionHeaderName)
+	if version != "2.0" {
+		t.Errorf("expected version header 2.0, got %s", version)
+	}
+
+	// Create ResponseWriter
+	w := ridge.NewResponseWriter()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Set-Cookie", "session=abc123")
 	w.WriteHeader(200)
 	w.WriteString(`{"message": "hello"}`)
 
-	resp := w.Response()
+	// Use ResponseFor with version from request
+	resp := w.ResponseFor(version)
 
 	// HTTP API responses should have cookies field
 	if len(resp.Cookies) != 1 {
