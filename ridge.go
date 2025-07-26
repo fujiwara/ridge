@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"mime"
@@ -33,15 +32,6 @@ var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/x
 // DefaultContentType is a default content-type when missing in response.
 var DefaultContentType = "text/plain; charset=utf-8"
 
-// APIType represents the type of API Gateway integration
-type APIType int
-
-const (
-	// APITypeREST represents REST API integration
-	APITypeREST APIType = iota
-	// APITypeHTTP represents HTTP API integration
-	APITypeHTTP
-)
 
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
@@ -73,15 +63,11 @@ func (r *Response) WriteTo(w http.ResponseWriter) (int64, error) {
 }
 
 // NewResponseWriter creates ResponseWriter
-func NewResponseWriter(apiType APIType) *ResponseWriter {
-	if apiType != APITypeREST && apiType != APITypeHTTP {
-		panic(fmt.Sprintf("invalid apiType: %d", int(apiType)))
-	}
+func NewResponseWriter() *ResponseWriter {
 	w := &ResponseWriter{
 		Buffer:     bytes.Buffer{},
 		statusCode: http.StatusOK,
 		header:     make(http.Header),
-		apiType:    apiType,
 	}
 	return w
 }
@@ -91,7 +77,6 @@ type ResponseWriter struct {
 	bytes.Buffer
 	header     http.Header
 	statusCode int
-	apiType    APIType
 }
 
 func (w *ResponseWriter) Header() http.Header {
@@ -102,14 +87,14 @@ func (w *ResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 }
 
-func (w *ResponseWriter) getCookiesIfNeeded() []string {
-	if w.apiType == APITypeREST {
-		return nil // REST API responses should not have cookies field (omitempty will exclude it)
-	}
-	return w.header.Values("Set-Cookie") // HTTP API and default behavior include cookies
-}
 
 func (w *ResponseWriter) Response() Response {
+	// Default behavior - include cookies for HTTP API compatibility
+	return w.ResponseFor("2.0")
+}
+
+// ResponseFor creates a response with version-specific behavior
+func (w *ResponseWriter) ResponseFor(version string) Response {
 	body := w.String()
 	isBase64Encoded := false
 
@@ -128,14 +113,20 @@ func (w *ResponseWriter) Response() Response {
 		body = base64.StdEncoding.EncodeToString(w.Bytes())
 	}
 
-	return Response{
+	resp := Response{
 		StatusCode:        w.statusCode,
 		Headers:           h,
 		MultiValueHeaders: w.header,
-		Cookies:           w.getCookiesIfNeeded(),
 		Body:              body,
 		IsBase64Encoded:   isBase64Encoded,
 	}
+
+	// Only set Cookies for HTTP API (version is not empty)
+	if version != "" {
+		resp.Cookies = w.header.Values("Set-Cookie")
+	}
+
+	return resp
 }
 
 // NewStreamingResponseWriter creates StreamingResponseWriter
@@ -337,17 +328,6 @@ func AsLambdaHandler() bool {
 	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
 }
 
-// detectAPIType determines the API Gateway type from the event payload
-func detectAPIType(event json.RawMessage) APIType {
-	var versionCheck struct {
-		Version string `json:"version"`
-	}
-	json.Unmarshal(event, &versionCheck)
-	if versionCheck.Version != "" {
-		return APITypeHTTP // HTTP API (v1.0/v2.0) has version field
-	}
-	return APITypeREST // REST API has no version field
-}
 
 func (r *Ridge) mountMux() http.Handler {
 	m := http.NewServeMux()
@@ -374,10 +354,11 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 			req.Header.Set("Lambda-Runtime-Invoked-Function-Arn", lc.InvokedFunctionArn)
 		}
 		if !r.StreamingResponse {
-			apiType := detectAPIType(event)
-			w := NewResponseWriter(apiType)
+			w := NewResponseWriter()
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
-			return w.Response(), nil
+			// Get version from request header
+			version := req.Header.Get(PayloadVersionHeaderName)
+			return w.ResponseFor(version), nil
 		}
 		w := NewStreamingResponseWriter()
 		go func() {

@@ -13,6 +13,9 @@ import (
 
 const RequestIDHeaderName = "X-Amzn-RequestId"
 
+// PayloadVersionHeaderName is a header name for payload version
+const PayloadVersionHeaderName = "X-Lambda-Payload-Version"
+
 // PayloadVersion when this variable set, Ridge disables auto detection payload version.
 var PayloadVersion string
 
@@ -56,13 +59,25 @@ func NewRequest(event json.RawMessage) (*http.Request, error) {
 		if err := json.Unmarshal(event, &rv2); err != nil {
 			return nil, err
 		}
-		return rv2.httpRequest()
+		req, err := rv2.httpRequest()
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set(PayloadVersionHeaderName, r.Version)
+		return req, nil
 	case "1.0", "":
 		var rv1 RequestV1
 		if err := json.Unmarshal(event, &rv1); err != nil {
 			return nil, err
 		}
-		return rv1.httpRequest()
+		req, err := rv1.httpRequest()
+		if err != nil {
+			return nil, err
+		}
+		if r.Version != "" {
+			req.Header.Set(PayloadVersionHeaderName, r.Version)
+		}
+		return req, nil
 	default:
 		return nil, fmt.Errorf("payload Version %s is not supported", r.Version)
 	}
