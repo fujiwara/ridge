@@ -32,7 +32,6 @@ var TextMimeTypes = []string{"image/svg+xml", "application/json", "application/x
 // DefaultContentType is a default content-type when missing in response.
 var DefaultContentType = "text/plain; charset=utf-8"
 
-
 // Response represents a response for API Gateway proxy integration.
 type Response struct {
 	StatusCode        int               `json:"statusCode"`
@@ -86,7 +85,6 @@ func (w *ResponseWriter) Header() http.Header {
 func (w *ResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 }
-
 
 func (w *ResponseWriter) Response() Response {
 	// Default behavior - include cookies for HTTP API compatibility
@@ -327,7 +325,6 @@ func AsLambdaExtension() bool {
 func AsLambdaHandler() bool {
 	return OnLambdaRuntime() && os.Getenv("_HANDLER") != ""
 }
-
 
 func (r *Ridge) mountMux() http.Handler {
 	m := http.NewServeMux()
