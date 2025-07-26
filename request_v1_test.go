@@ -17,9 +17,9 @@ import (
 )
 
 func TestGetRequest(t *testing.T) {
-	f, err := os.Open("test/get.json")
+	f, err := os.Open("test/get-v1.json")
 	if err != nil {
-		t.Fatalf("failed to open test/get.json: %s", err)
+		t.Fatalf("failed to open test/get-v1.json: %s", err)
 	}
 	body, _ := io.ReadAll(f)
 	r, err := ridge.NewRequest(json.RawMessage(body))
@@ -142,7 +142,7 @@ func TestBase64EncodedRequest(t *testing.T) {
 }
 
 func TestResponseWriter(t *testing.T) {
-	w := ridge.NewResponseWriter()
+	w := ridge.NewResponseWriter(ridge.APITypeHTTP)
 
 	for _, s := range []string{"abcd", "efgh"} {
 		n, err := io.WriteString(w, s)
@@ -194,7 +194,7 @@ func TestResponseWriter__Image(t *testing.T) {
 	}
 	expectedBody := base64.StdEncoding.EncodeToString(bs)
 
-	w := ridge.NewResponseWriter()
+	w := ridge.NewResponseWriter(ridge.APITypeHTTP)
 	req, err := http.NewRequest(http.MethodGet, "http://example.com/bluebox.png", nil)
 	if err != nil {
 		t.Error(err)
