@@ -37,7 +37,7 @@ type Response struct {
 	StatusCode        int               `json:"statusCode"`
 	Headers           map[string]string `json:"headers"`
 	MultiValueHeaders http.Header       `json:"multiValueHeaders"`
-	Cookies           []string          `json:"cookies"`
+	Cookies           []string          `json:"cookies,omitempty"`
 	Body              string            `json:"body"`
 	IsBase64Encoded   bool              `json:"isBase64Encoded"`
 }
@@ -87,6 +87,12 @@ func (w *ResponseWriter) WriteHeader(code int) {
 }
 
 func (w *ResponseWriter) Response() Response {
+	// Default behavior - include cookies for HTTP API compatibility
+	return w.ResponseFor("2.0")
+}
+
+// ResponseFor creates a response with version-specific behavior
+func (w *ResponseWriter) ResponseFor(version string) Response {
 	body := w.String()
 	isBase64Encoded := false
 
@@ -105,14 +111,20 @@ func (w *ResponseWriter) Response() Response {
 		body = base64.StdEncoding.EncodeToString(w.Bytes())
 	}
 
-	return Response{
+	resp := Response{
 		StatusCode:        w.statusCode,
 		Headers:           h,
 		MultiValueHeaders: w.header,
-		Cookies:           w.header.Values("Set-Cookie"),
 		Body:              body,
 		IsBase64Encoded:   isBase64Encoded,
 	}
+
+	// Only set Cookies for HTTP API (version is not empty)
+	if version != "" {
+		resp.Cookies = w.header.Values("Set-Cookie")
+	}
+
+	return resp
 }
 
 // NewStreamingResponseWriter creates StreamingResponseWriter
@@ -341,7 +353,9 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 		if !r.StreamingResponse {
 			w := NewResponseWriter()
 			r.mountMux().ServeHTTP(w, req.WithContext(ctx))
-			return w.Response(), nil
+			// Get version from request header
+			version := req.Header.Get(PayloadVersionHeaderName)
+			return w.ResponseFor(version), nil
 		}
 		w := NewStreamingResponseWriter()
 		go func() {

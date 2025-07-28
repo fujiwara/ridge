@@ -17,9 +17,9 @@ import (
 )
 
 func TestGetRequest(t *testing.T) {
-	f, err := os.Open("test/get.json")
+	f, err := os.Open("test/get-v1.json")
 	if err != nil {
-		t.Fatalf("failed to open test/get.json: %s", err)
+		t.Fatalf("failed to open test/get-v1.json: %s", err)
 	}
 	body, _ := io.ReadAll(f)
 	r, err := ridge.NewRequest(json.RawMessage(body))
@@ -53,6 +53,10 @@ func TestGetRequest(t *testing.T) {
 	}
 	if v := r.Header.Get("X-Amzn-RequestId"); v != "817175b9-890f-11e6-960e-4f321627a748" {
 		t.Errorf("Header[X-Amzn-RequestId]: %s is not expected", v)
+	}
+	// Verify version header is set for v1.0
+	if v := r.Header.Get(ridge.PayloadVersionHeaderName); v != "1.0" {
+		t.Errorf("expected version header 1.0, got %s", v)
 	}
 	if r.RemoteAddr != "203.0.113.1" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
@@ -257,6 +261,9 @@ func TestV1RoundTrip(t *testing.T) {
 				t.Error("failed to decode RequestV1", err)
 			}
 
+			// Remove X-Ridge-Payload-Version header before comparison
+			// as it's added by ridge for internal use
+			rr.Header.Del(ridge.PayloadVersionHeaderName)
 			rd, _ := httputil.DumpRequest(rr, true)
 			t.Logf("original request: %s", od)
 			t.Logf("decoded request: %s", rd)

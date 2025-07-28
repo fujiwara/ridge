@@ -51,6 +51,10 @@ func TestGetRequestV2(t *testing.T) {
 	if r.RemoteAddr != "203.0.113.1" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
+	// Verify version header is set for v2.0
+	if v := r.Header.Get(ridge.PayloadVersionHeaderName); v != "2.0" {
+		t.Errorf("expected version header 2.0, got %s", v)
+	}
 }
 
 func TestPostRequestV2(t *testing.T) {
@@ -114,6 +118,9 @@ func TestV2RoundTrip(t *testing.T) {
 				t.Error("failed to decode RequestV1", err)
 			}
 
+			// Remove X-Ridge-Payload-Version header before comparison
+			// as it's added by ridge for internal use
+			rr.Header.Del(ridge.PayloadVersionHeaderName)
 			rd, _ := httputil.DumpRequest(rr, true)
 			t.Logf("original request: %s", od)
 			t.Logf("decoded request: %s", rd)
