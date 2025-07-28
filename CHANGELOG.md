@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.13.1](https://github.com/fujiwara/ridge/compare/v0.13.0...v0.13.1) - 2025-07-28
+- Support API Gateway REST API by @HASHIMOTO-Takafumi in https://github.com/fujiwara/ridge/pull/48
+- refactor: use payload version header instead of APIType enum by @fujiwara in https://github.com/fujiwara/ridge/pull/49
+- Support API Gateway REST API (refactored) by @fujiwara in https://github.com/fujiwara/ridge/pull/50
+
 ## [v0.13.0](https://github.com/fujiwara/ridge/compare/v0.12.1...v0.13.0) - 2025-04-29
 - implement for InvokeMode response_stream by @mashiike in https://github.com/fujiwara/ridge/pull/39
 - adds tagpr by @fujiwara in https://github.com/fujiwara/ridge/pull/41
