@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -140,7 +141,7 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 		Header:        header,
 		ContentLength: contentLength,
 		Body:          io.NopCloser(b),
-		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
+		RemoteAddr:    net.JoinHostPort(r.RequestContext.Identity["sourceIp"], "1234"),
 		Host:          host,
 		RequestURI:    uri,
 		URL:           u,
@@ -255,7 +256,7 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 		Header:        header,
 		ContentLength: contentLength,
 		Body:          io.NopCloser(b),
-		RemoteAddr:    r.RequestContext.HTTP.SourceIP,
+		RemoteAddr:    net.JoinHostPort(r.RequestContext.HTTP.SourceIP, "1234"),
 		Host:          host,
 		RequestURI:    uri,
 		URL:           u,

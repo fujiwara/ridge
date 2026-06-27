@@ -58,7 +58,7 @@ func TestGetRequest(t *testing.T) {
 	if v := r.Header.Get(ridge.PayloadVersionHeaderName); v != "1.0" {
 		t.Errorf("expected version header 1.0, got %s", v)
 	}
-	if r.RemoteAddr != "203.0.113.1" {
+	if r.RemoteAddr != "203.0.113.1:1234" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
 }
@@ -96,7 +96,7 @@ func TestPostRequest(t *testing.T) {
 	if v := r.Header.Get("X-Amzn-RequestId"); v != "8eed9b4f-890f-11e6-9f3c-1584342606cd" {
 		t.Errorf("Header[X-Amzn-RequestId]: %s is not expected", v)
 	}
-	if r.RemoteAddr != "203.0.113.1" {
+	if r.RemoteAddr != "203.0.113.1:1234" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
 	if r.ContentLength != 13 {
@@ -137,7 +137,7 @@ func TestBase64EncodedRequest(t *testing.T) {
 	if v := r.Header.Get("X-Amzn-RequestId"); v != "8eed9b4f-890f-11e6-9f3c-1584342606cd" {
 		t.Errorf("Header[X-Amzn-RequestId]: %s is not expected", v)
 	}
-	if r.RemoteAddr != "203.0.113.1" {
+	if r.RemoteAddr != "203.0.113.1:1234" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
 	if r.ContentLength != 13 {
