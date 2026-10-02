@@ -96,6 +96,14 @@ When an application runs on AWS Lambda environments, ridge sets the following he
 
 These headers are from the [Lambda runtime API](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-api.html).
 
+#### Remote address
+
+On AWS Lambda, ridge sets `http.Request.RemoteAddr` from the source IP of the event in the `host:port` format, the same as `net/http` server.
+
+Lambda events do not carry the client source port, so the port is always `0` (e.g. `203.0.113.1:0`, `[2001:db8::1]:0`). If the event has no source IP (e.g. ALB), `RemoteAddr` is empty.
+
+Use `net.SplitHostPort(r.RemoteAddr)` to get the IP address.
+
 ### Custom request builder
 
 You can use a custom request builder to convert the AWS Lambda invoke payload to net/http.Request.

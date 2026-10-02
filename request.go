@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -140,7 +141,7 @@ func (r RequestV1) httpRequest() (*http.Request, error) {
 		Header:        header,
 		ContentLength: contentLength,
 		Body:          io.NopCloser(b),
-		RemoteAddr:    r.RequestContext.Identity["sourceIp"],
+		RemoteAddr:    remoteAddr(r.RequestContext.Identity["sourceIp"]),
 		Host:          host,
 		RequestURI:    uri,
 		URL:           u,
@@ -200,6 +201,16 @@ type RequestContextV2 struct {
 	TimeEpoch int64  `json:"timeEpoch"`
 }
 
+// remoteAddr returns the source IP in the "host:port" format for http.Request.RemoteAddr.
+// Lambda events do not carry the client source port, so port 0 (unspecified) is used.
+// It returns an empty string if the source IP is empty.
+func remoteAddr(sourceIP string) string {
+	if sourceIP == "" {
+		return ""
+	}
+	return net.JoinHostPort(sourceIP, "0")
+}
+
 func validateRequest(r *http.Request) (*http.Request, error) {
 	if r.Method == "" {
 		return nil, fmt.Errorf("http method is empty")
@@ -255,7 +266,7 @@ func (r RequestV2) httpRequest() (*http.Request, error) {
 		Header:        header,
 		ContentLength: contentLength,
 		Body:          io.NopCloser(b),
-		RemoteAddr:    r.RequestContext.HTTP.SourceIP,
+		RemoteAddr:    remoteAddr(r.RequestContext.HTTP.SourceIP),
 		Host:          host,
 		RequestURI:    uri,
 		URL:           u,
