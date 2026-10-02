@@ -48,7 +48,7 @@ func TestGetRequestV2(t *testing.T) {
 	if v := r.Header.Get("x-amzn-requestid"); v != "Jl6rIhtwNjMEJLQ=" {
 		t.Errorf("Header[x-amzn-requestid]: %s is not expected", v)
 	}
-	if r.RemoteAddr != "203.0.113.1" {
+	if r.RemoteAddr != "203.0.113.1:1234" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
 	// Verify version header is set for v2.0
@@ -81,7 +81,7 @@ func TestPostRequestV2(t *testing.T) {
 	if v := r.FormValue("foo"); v != "bar baz" {
 		t.Errorf("PostFormValue(foo): %s is not expected", v)
 	}
-	if r.RemoteAddr != "203.0.113.1" {
+	if r.RemoteAddr != "203.0.113.1:1234" {
 		t.Errorf("RemoteAddr: %s is not expected", r.RemoteAddr)
 	}
 	if v := r.Header.Get("x-amzn-trace-id"); v != "Root=1-5e723db7-6077c85e0d781094f0c83e24" {
