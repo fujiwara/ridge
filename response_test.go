@@ -75,7 +75,7 @@ func TestStreamingResponse(t *testing.T) {
 			return
 		case <-signalChan:
 		}
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			fmt.Fprintf(w, "data: %d\n\n", i)
 			w.Flush()
 		}
