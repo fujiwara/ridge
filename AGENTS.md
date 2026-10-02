@@ -27,6 +27,7 @@ The same binary runs either as a Lambda handler or as a standalone `net/http` se
 - **Binary bodies**: responses are base64 encoded when `Content-Type` is not text (see `isTextMime` / `TextMimeTypes`) or `Content-Encoding: gzip`.
 - **Streaming responses**: enabled via `Ridge.StreamingResponse` or `RIDGE_STREAMING_RESPONSE=1|true`; requires the Function URL `InvokeMode` to be `RESPONSE_STREAM`.
 - **PROXY protocol**: when `ProxyProtocol` is enabled, the local server accepts connections both with and without a PROXY header (`proxyproto.USE`). go-proxyproto v0.15+ defaults to `REQUIRE`, so the policy is set explicitly.
+- **RemoteAddr**: set to `sourceIp` with port `0` in the `host:port` format (`remoteAddr` in `request.go`); empty when the event has no source IP (e.g. ALB).
 - Lambda mode adds `Lambda-Runtime-Aws-Request-Id` and `Lambda-Runtime-Invoked-Function-Arn` request headers.
 - Keep the public API backward compatible (e.g. the aliases `Request = RequestV1` and `RequetContext` are intentionally kept).
 
