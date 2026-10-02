@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.14.1](https://github.com/fujiwara/ridge/compare/v0.14.0...v0.14.1) - 2026-10-02
+
+- Add integration tests with Lambda Runtime Interface Emulator by @fujiwara in https://github.com/fujiwara/ridge/pull/65
+
 ## [v0.14.0](https://github.com/fujiwara/ridge/compare/v0.13.1...v0.14.0) - 2026-10-02
 
 ### ⚠️ Breaking changes
