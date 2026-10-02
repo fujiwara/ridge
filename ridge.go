@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -226,13 +227,7 @@ func isTextMime(kind string) bool {
 		return true
 	}
 
-	isText := false
-	for _, tmt := range TextMimeTypes {
-		if mt == tmt {
-			isText = true
-			break
-		}
-	}
+	isText := slices.Contains(TextMimeTypes, mt)
 	return isText
 }
 
@@ -340,7 +335,7 @@ func (r *Ridge) mountMux() http.Handler {
 }
 
 func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
-	handler := func(ctx context.Context, event json.RawMessage) (interface{}, error) {
+	handler := func(ctx context.Context, event json.RawMessage) (any, error) {
 		req, err := r.RequestBuilder(event)
 		if err != nil {
 			log.Println(err)
@@ -372,15 +367,29 @@ func (r *Ridge) runAsLambdaHandler(ctx context.Context) {
 	lambda.StartWithOptions(handler, opts...)
 }
 
-func (r *Ridge) runOnNetHTTPServer(ctx context.Context) {
-	log.Println("starting up with local httpd", r.Address)
+func (r *Ridge) listen() (net.Listener, error) {
 	listener, err := net.Listen("tcp", r.Address)
 	if err != nil {
-		log.Fatalf("couldn't listen to %s: %s", r.Address, err.Error())
+		return nil, err
 	}
 	if r.ProxyProtocol {
 		log.Println("enables to PROXY protocol")
-		listener = &proxyproto.Listener{Listener: listener}
+		listener = &proxyproto.Listener{
+			Listener: listener,
+			// Accept connections both with and without a PROXY header.
+			ConnPolicy: func(proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
+				return proxyproto.USE, nil
+			},
+		}
+	}
+	return listener, nil
+}
+
+func (r *Ridge) runOnNetHTTPServer(ctx context.Context) {
+	log.Println("starting up with local httpd", r.Address)
+	listener, err := r.listen()
+	if err != nil {
+		log.Fatalf("couldn't listen to %s: %s", r.Address, err.Error())
 	}
 	srv := http.Server{Handler: r.mountMux()}
 	var wg sync.WaitGroup

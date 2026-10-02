@@ -42,7 +42,7 @@ func TestDecodeLogStream(t *testing.T) {
 }
 
 func ExampleDecodeLogStream() {
-	lambda.Start(func(event json.RawMessage) (interface{}, error) {
+	lambda.Start(func(event json.RawMessage) (any, error) {
 		logStream, err := ridge.DecodeLogStream(event)
 		if err != nil {
 			return nil, err
