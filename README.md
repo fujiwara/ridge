@@ -177,6 +177,15 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 
 This application works on AWS Lambda(streaming response mode) and also as a standalone HTTP server.
 
+## Development
+
+```console
+$ make test       # unit tests
+$ make test-rie   # integration tests with the AWS Lambda Runtime Interface Emulator (requires Docker)
+```
+
+`make test-rie` builds `test/rie` as a custom runtime `bootstrap` and invokes it in the official Lambda base image (`public.ecr.aws/lambda/provided:al2023`, can be overridden by `RIDGE_RIE_IMAGE`).
+
 ## LICENSE
 
 The MIT License (MIT)

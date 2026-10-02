@@ -17,6 +17,7 @@ The same binary runs either as a Lambda handler or as a standalone `net/http` se
 - `logs.go` — `DecodeLogStream` for CloudWatch Logs subscription events
 - `export_test.go` — exports unexported functions for tests in the `ridge_test` package
 - `test/` — JSON event payload fixtures (`get-v1.json`, `get-v2.json`, `get-rest.json`, etc.) used by tests
+- `test/rie/` — test application used by the RIE integration tests (`rie_test.go`)
 - `example/` — sample application with its own `go.mod`, deployed with lambroll (not part of the main module's tests)
 
 ## Key behaviors to preserve
@@ -37,11 +38,13 @@ The same binary runs either as a Lambda handler or as a standalone `net/http` se
 go test -v ./...      # run all tests (same as `make test`)
 go fmt ./...
 go fix ./...
+make test-rie         # integration tests with the Lambda Runtime Interface Emulator (requires Docker)
 ```
 
 - Before committing, run `go fmt ./...` and `go fix ./...`.
-- CI (`.github/workflows/go.yml`) runs `go test -v .` on multiple Go versions; keep the code compatible with the `go` directive in `go.mod`.
+- CI (`.github/workflows/go.yml`) runs `go test -v .` on multiple Go versions, and the RIE integration tests (`go test -tags rie -run TestRIE .`) in a separate job; keep the code compatible with the `go` directive in `go.mod`.
 - Tests mostly live in the external `ridge_test` package. Add new event payloads as fixtures under `test/` and assert on the resulting `*http.Request` / `Response`.
+- `rie_test.go` (build tag `rie`) builds `test/rie` as a custom runtime `bootstrap` and invokes it in `public.ecr.aws/lambda/provided:al2023` (override with `RIDGE_RIE_IMAGE`). Add cases there when a behavior depends on the real Lambda runtime.
 - Add tests for any new or changed behavior, covering each payload format (v1, v2, REST API) when relevant.
 - Update `README.md` when adding or changing user-facing features.
 
