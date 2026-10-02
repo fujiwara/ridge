@@ -1,5 +1,14 @@
 name: Go
-on: [push]
+on:
+  push:
+    branches:
+      - main
+      - "tagpr-from-*"
+  pull_request:
+
+permissions:
+  contents: read
+
 jobs:
   test:
     strategy:
