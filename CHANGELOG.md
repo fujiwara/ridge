@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.14.0](https://github.com/fujiwara/ridge/compare/v0.13.1...v0.14.0) - 2026-10-02
+
+### ⚠️ Breaking changes
+
+- On AWS Lambda, `http.Request.RemoteAddr` is now in the `host:port` format with port `0` (e.g. `203.0.113.1:0`, `[2001:db8::1]:0`), the same format as `net/http` server. It was a bare IP address before. It is empty when the event has no source IP (e.g. ALB). Use `net.SplitHostPort(r.RemoteAddr)` to get the IP address. (#60, #63)
+- Go 1.26 or later is required. (#61)
+
+### What's Changed
+
+- Modernize: require Go 1.26, update dependencies and actions by @fujiwara in https://github.com/fujiwara/ridge/pull/61
+- `req.RemoteAddr` should be in the `host:port` format by @shogo82148 in https://github.com/fujiwara/ridge/pull/60
+- Set `RemoteAddr` in the `host:port` format by @fujiwara in https://github.com/fujiwara/ridge/pull/63
+- Run CI on pull requests and limit push trigger by @fujiwara in https://github.com/fujiwara/ridge/pull/64
+
 ## [v0.13.1](https://github.com/fujiwara/ridge/compare/v0.13.0...v0.13.1) - 2025-07-28
 - Support API Gateway REST API by @HASHIMOTO-Takafumi in https://github.com/fujiwara/ridge/pull/48
 - refactor: use payload version header instead of APIType enum by @fujiwara in https://github.com/fujiwara/ridge/pull/49
